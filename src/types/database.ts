@@ -411,6 +411,41 @@ export type Database = {
           },
         ]
       }
+      client_settings: {
+        Row: {
+          id: string
+          client_id: string
+          setting_key: string
+          setting_value: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          setting_key: string
+          setting_value: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          setting_key?: string
+          setting_value?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_settings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_accounts: {
         Row: {
           account_id: string

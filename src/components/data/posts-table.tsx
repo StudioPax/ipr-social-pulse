@@ -59,7 +59,55 @@ const PILLAR_COLORS: Record<string, string> = {
   Sustainability: "bg-green-100 text-green-800",
 };
 
-export function PostsTable({ posts }: { posts: Post[] }) {
+export interface PostAnalysis {
+  post_id: string;
+  pillar_primary: string | null;
+  pillar_secondary: string | null;
+  sentiment_label: string | null;
+  sentiment_score: number | null;
+  performance_tier: string | null;
+  recommended_action: string | null;
+  policy_relevance: number | null;
+  content_type: string | null;
+  audience_fit: string | null;
+}
+
+const SENTIMENT_COLORS: Record<string, string> = {
+  positive: "bg-emerald-100 text-emerald-800",
+  negative: "bg-red-100 text-red-800",
+  neutral: "bg-gray-100 text-gray-700",
+  mixed: "bg-amber-100 text-amber-800",
+};
+
+const TIER_COLORS: Record<string, string> = {
+  T1_PolicyEngine: "bg-purple-100 text-purple-800",
+  T2_Visibility: "bg-blue-100 text-blue-800",
+  T3_Niche: "bg-amber-100 text-amber-800",
+  T4_Underperformer: "bg-gray-100 text-gray-600",
+};
+
+const TIER_LABELS: Record<string, string> = {
+  T1_PolicyEngine: "T1",
+  T2_Visibility: "T2",
+  T3_Niche: "T3",
+  T4_Underperformer: "T4",
+};
+
+const ACTION_LABELS: Record<string, string> = {
+  amplify: "Amplify",
+  template: "Template",
+  promote_niche: "Promote",
+  diagnose: "Diagnose",
+  archive: "Archive",
+};
+
+export function PostsTable({
+  posts,
+  analyses,
+}: {
+  posts: Post[];
+  analyses?: Map<string, PostAnalysis>;
+}) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "published_at", desc: true },
   ]);
@@ -166,6 +214,59 @@ export function PostsTable({ posts }: { posts: Post[] }) {
         },
       },
       {
+        id: "sentiment",
+        header: "Sentiment",
+        size: 90,
+        cell: ({ row }) => {
+          const analysis = analyses?.get(row.original.id);
+          if (!analysis?.sentiment_label) {
+            return <span className="text-xs text-muted-foreground">—</span>;
+          }
+          return (
+            <Badge
+              className={`text-[10px] ${SENTIMENT_COLORS[analysis.sentiment_label] || "bg-muted"}`}
+            >
+              {analysis.sentiment_label}
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "tier",
+        header: "Tier",
+        size: 60,
+        cell: ({ row }) => {
+          const analysis = analyses?.get(row.original.id);
+          if (!analysis?.performance_tier) {
+            return <span className="text-xs text-muted-foreground">—</span>;
+          }
+          return (
+            <Badge
+              className={`text-[10px] ${TIER_COLORS[analysis.performance_tier] || "bg-muted"}`}
+              title={analysis.performance_tier}
+            >
+              {TIER_LABELS[analysis.performance_tier] || analysis.performance_tier}
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "action",
+        header: "Action",
+        size: 90,
+        cell: ({ row }) => {
+          const analysis = analyses?.get(row.original.id);
+          if (!analysis?.recommended_action) {
+            return <span className="text-xs text-muted-foreground">—</span>;
+          }
+          return (
+            <span className="text-xs font-medium capitalize">
+              {ACTION_LABELS[analysis.recommended_action] || analysis.recommended_action}
+            </span>
+          );
+        },
+      },
+      {
         accessorKey: "content_format",
         header: "Type",
         size: 80,
@@ -179,7 +280,7 @@ export function PostsTable({ posts }: { posts: Post[] }) {
         },
       },
     ],
-    []
+    [analyses]
   );
 
   const table = useReactTable({

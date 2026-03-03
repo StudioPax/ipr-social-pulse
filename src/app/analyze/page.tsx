@@ -4,7 +4,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { PostsTable } from "@/components/data/posts-table";
+import { PostsTable, type PostAnalysis } from "@/components/data/posts-table";
+import { AnalysisPanel } from "@/components/data/analysis-panel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -29,14 +30,18 @@ interface PostRow {
 
 export default function AnalyzePage() {
   const [posts, setPosts] = useState<PostRow[]>([]);
+  const [analyses, setAnalyses] = useState<Map<string, PostAnalysis>>(
+    new Map()
+  );
   const [loading, setLoading] = useState(true);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     analyzed: 0,
     platforms: {} as Record<string, number>,
   });
 
-  const loadPosts = useCallback(async () => {
+  const loadData = useCallback(async () => {
     // Get default client
     const { data: client } = await supabase
       .from("clients")
@@ -49,35 +54,47 @@ export default function AnalyzePage() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("posts")
-      .select(
-        "id, platform, post_id, content_text, content_url, published_at, likes, reposts, comments, engagement_total, hashtags, content_format, authors, pillar_tag, collected_at"
-      )
-      .eq("client_id", client.id)
-      .order("published_at", { ascending: false })
-      .limit(500);
+    setClientId(client.id);
 
-    if (error) {
-      console.error("Error loading posts:", error);
-      setLoading(false);
-      return;
-    }
+    // Load posts and analyses in parallel
+    const [postsResult, analysesResult] = await Promise.all([
+      supabase
+        .from("posts")
+        .select(
+          "id, platform, post_id, content_text, content_url, published_at, likes, reposts, comments, engagement_total, hashtags, content_format, authors, pillar_tag, collected_at"
+        )
+        .eq("client_id", client.id)
+        .order("published_at", { ascending: false })
+        .limit(500),
+      supabase
+        .from("post_analyses")
+        .select(
+          "post_id, pillar_primary, pillar_secondary, sentiment_label, sentiment_score, performance_tier, recommended_action, policy_relevance, content_type, audience_fit"
+        ),
+    ]);
 
-    const postList = data || [];
+    const postList = postsResult.data || [];
     setPosts(postList);
+
+    // Build analyses map
+    const analysisMap = new Map<string, PostAnalysis>();
+    if (analysesResult.data) {
+      for (const a of analysesResult.data) {
+        analysisMap.set(a.post_id, a);
+      }
+    }
+    setAnalyses(analysisMap);
 
     // Calculate stats
     const platformCounts: Record<string, number> = {};
-    let analyzedCount = 0;
     for (const post of postList) {
-      platformCounts[post.platform] = (platformCounts[post.platform] || 0) + 1;
-      if (post.pillar_tag) analyzedCount++;
+      platformCounts[post.platform] =
+        (platformCounts[post.platform] || 0) + 1;
     }
 
     setStats({
       total: postList.length,
-      analyzed: analyzedCount,
+      analyzed: analysisMap.size,
       platforms: platformCounts,
     });
 
@@ -85,8 +102,8 @@ export default function AnalyzePage() {
   }, []);
 
   useEffect(() => {
-    loadPosts();
-  }, [loadPosts]);
+    loadData();
+  }, [loadData]);
 
   if (loading) {
     return (
@@ -101,7 +118,8 @@ export default function AnalyzePage() {
     <div className="p-6 max-w-dashboard">
       <h2 className="font-display text-2xl">Analyze</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        View collected posts and run AI analysis for sentiment, pillar alignment, and tiering.
+        View collected posts and run AI analysis for sentiment, pillar
+        alignment, and tiering.
       </p>
 
       <Separator className="my-6" />
@@ -132,7 +150,11 @@ export default function AnalyzePage() {
           <CardContent className="pt-4 pb-3">
             <div className="flex flex-wrap gap-1">
               {Object.entries(stats.platforms).map(([platform, count]) => (
-                <Badge key={platform} variant="secondary" className="text-[10px]">
+                <Badge
+                  key={platform}
+                  variant="secondary"
+                  className="text-[10px]"
+                >
                   {platform}: {count}
                 </Badge>
               ))}
@@ -145,8 +167,15 @@ export default function AnalyzePage() {
         </Card>
       </div>
 
+      {/* Analysis Panel */}
+      {clientId && (
+        <div className="mb-6">
+          <AnalysisPanel clientId={clientId} onAnalysisComplete={loadData} />
+        </div>
+      )}
+
       {/* Posts Table */}
-      <PostsTable posts={posts} />
+      <PostsTable posts={posts} analyses={analyses} />
     </div>
   );
 }
