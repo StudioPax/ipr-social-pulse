@@ -101,6 +101,37 @@ const ACTION_LABELS: Record<string, string> = {
   archive: "Archive",
 };
 
+const SENTIMENT_ORDER: Record<string, number> = {
+  positive: 0,
+  neutral: 1,
+  mixed: 2,
+  negative: 3,
+};
+
+const TIER_ORDER: Record<string, number> = {
+  T1_PolicyEngine: 0,
+  T2_Visibility: 1,
+  T3_Niche: 2,
+  T4_Underperformer: 3,
+};
+
+const ACTION_ORDER: Record<string, number> = {
+  amplify: 0,
+  template: 1,
+  promote_niche: 2,
+  diagnose: 3,
+  archive: 4,
+};
+
+const COLUMN_TOOLTIPS: Record<string, string> = {
+  sentiment:
+    "Post tone based on communicative intent. Positive = promoting work; Negative = expressing concern; Mixed = conflicting signals.",
+  tier:
+    "T1 Policy Engine: high engagement + policy relevance. T2 Visibility: high engagement, lower policy fit. T3 Niche: low engagement but policy-relevant. T4 Underperformer: low on both.",
+  action:
+    "Amplify: boost high performers. Template: use as model. Promote: invest in niche content. Diagnose: investigate underperformance. Archive: low relevance.",
+};
+
 export function PostsTable({
   posts,
   analyses,
@@ -215,7 +246,20 @@ export function PostsTable({
       },
       {
         id: "sentiment",
-        header: "Sentiment",
+        header: () => (
+          <span title={COLUMN_TOOLTIPS.sentiment} className="underline decoration-dotted decoration-muted-foreground/50 underline-offset-4">
+            Sentiment
+          </span>
+        ),
+        accessorFn: (row) => {
+          const a = analyses?.get(row.id);
+          return a?.sentiment_label || "";
+        },
+        sortingFn: (rowA, rowB) => {
+          const a = analyses?.get(rowA.original.id)?.sentiment_label || "";
+          const b = analyses?.get(rowB.original.id)?.sentiment_label || "";
+          return (SENTIMENT_ORDER[a] ?? 99) - (SENTIMENT_ORDER[b] ?? 99);
+        },
         size: 90,
         cell: ({ row }) => {
           const analysis = analyses?.get(row.original.id);
@@ -233,7 +277,20 @@ export function PostsTable({
       },
       {
         id: "tier",
-        header: "Tier",
+        header: () => (
+          <span title={COLUMN_TOOLTIPS.tier} className="underline decoration-dotted decoration-muted-foreground/50 underline-offset-4">
+            Tier
+          </span>
+        ),
+        accessorFn: (row) => {
+          const a = analyses?.get(row.id);
+          return a?.performance_tier || "";
+        },
+        sortingFn: (rowA, rowB) => {
+          const a = analyses?.get(rowA.original.id)?.performance_tier || "";
+          const b = analyses?.get(rowB.original.id)?.performance_tier || "";
+          return (TIER_ORDER[a] ?? 99) - (TIER_ORDER[b] ?? 99);
+        },
         size: 60,
         cell: ({ row }) => {
           const analysis = analyses?.get(row.original.id);
@@ -252,7 +309,20 @@ export function PostsTable({
       },
       {
         id: "action",
-        header: "Action",
+        header: () => (
+          <span title={COLUMN_TOOLTIPS.action} className="underline decoration-dotted decoration-muted-foreground/50 underline-offset-4">
+            Action
+          </span>
+        ),
+        accessorFn: (row) => {
+          const a = analyses?.get(row.id);
+          return a?.recommended_action || "";
+        },
+        sortingFn: (rowA, rowB) => {
+          const a = analyses?.get(rowA.original.id)?.recommended_action || "";
+          const b = analyses?.get(rowB.original.id)?.recommended_action || "";
+          return (ACTION_ORDER[a] ?? 99) - (ACTION_ORDER[b] ?? 99);
+        },
         size: 90,
         cell: ({ row }) => {
           const analysis = analyses?.get(row.original.id);
