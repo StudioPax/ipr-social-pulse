@@ -187,13 +187,26 @@ export function normalizePost(post: BskyPost): NormalizedPost {
   }
 
   // Content format detection
-  let contentFormat = "text";
-  if (mediaType === "image") contentFormat = "image";
+  // Check for video/image embeds first
   if (post.record?.embed?.$type === "app.bsky.embed.video") {
-    contentFormat = "video";
     mediaType = "video";
   }
-  if (links.length > 0 && !mediaType) contentFormat = "link";
+
+  // Determine format: use media type if present, otherwise classify by text length
+  let contentFormat: string;
+  if (mediaType === "video") {
+    contentFormat = "video";
+  } else if (mediaType === "image") {
+    contentFormat = "image";
+  } else if (links.length > 0) {
+    contentFormat = "link";
+  } else if (text.length <= 100) {
+    contentFormat = "short";
+  } else if (text.length <= 280) {
+    contentFormat = "medium";
+  } else {
+    contentFormat = "long";
+  }
 
   // Post URL
   const handle = post.author?.handle || "";
