@@ -2,7 +2,7 @@
 // App Spec Module 1 — Post collection with date range, platform select, content types
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+
+// ── Constants ──────────────────────────────────────────────────────────
 
 const PLATFORMS = [
   { id: "bluesky", label: "Bluesky", ready: true },
@@ -24,6 +26,40 @@ const COLLECT_MODES = [
   { id: "search", label: "Keyword Search", description: "Search public posts by keyword" },
 ] as const;
 
+function toDateStr(d: Date) {
+  return d.toISOString().split("T")[0];
+}
+
+const DATE_PRESETS = [
+  { id: "1m", label: "Last month", getDates: () => {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(start.getMonth() - 1);
+    return { start: toDateStr(start), end: toDateStr(end) };
+  }},
+  { id: "3m", label: "Last 3 months", getDates: () => {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(start.getMonth() - 3);
+    return { start: toDateStr(start), end: toDateStr(end) };
+  }},
+  { id: "6m", label: "Last 6 months", getDates: () => {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(start.getMonth() - 6);
+    return { start: toDateStr(start), end: toDateStr(end) };
+  }},
+  { id: "1y", label: "Last year", getDates: () => {
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1);
+    return { start: toDateStr(start), end: toDateStr(end) };
+  }},
+  { id: "custom", label: "Custom range", getDates: () => null },
+] as const;
+
+// ── Types ──────────────────────────────────────────────────────────────
+
 interface CollectionRun {
   id: string;
   status: string;
@@ -35,6 +71,14 @@ interface CollectionRun {
   created_at: string;
 }
 
+interface LogEntry {
+  time: string;
+  level: "info" | "success" | "error" | "warn";
+  message: string;
+}
+
+// ── Component ──────────────────────────────────────────────────────────
+
 export default function CollectPage() {
   // Client state
   const [clientId, setClientId] = useState<string | null>(null);
@@ -44,35 +88,60 @@ export default function CollectPage() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["bluesky"]);
   const [collectMode, setCollectMode] = useState<"feed" | "search">("feed");
   const [searchQuery, setSearchQuery] = useState("Northwestern IPR");
+  const [datePreset, setDatePreset] = useState("1m");
   const [dateStart, setDateStart] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString().split("T")[0];
+    d.setMonth(d.getMonth() - 1);
+    return toDateStr(d);
   });
-  const [dateEnd, setDateEnd] = useState(() => new Date().toISOString().split("T")[0]);
+  const [dateEnd, setDateEnd] = useState(() => toDateStr(new Date()));
   const [minEngagement, setMinEngagement] = useState(0);
 
   // Run state
   const [isCollecting, setIsCollecting] = useState(false);
-  const [lastResult, setLastResult] = useState<{
-    posts_collected: number;
-    errors?: string[];
-    status: string;
-  } | null>(null);
 
   // History
   const [runs, setRuns] = useState<CollectionRun[]>([]);
 
+  // Log state
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logOpen, setLogOpen] = useState(false);
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  function addLog(level: LogEntry["level"], message: string) {
+    const time = new Date().toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    setLogs((prev) => [...prev, { time, level, message }]);
+    setLogOpen(true);
+  }
+
+  // Auto-scroll log to bottom
+  useEffect(() => {
+    if (logOpen) {
+      logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [logs, logOpen]);
+
   // Load client and run history
   const loadData = useCallback(async () => {
-    const { data: clients } = await supabase
+    const { data: clients, error: clientErr } = await supabase
       .from("clients")
       .select("id")
       .limit(1)
       .single();
 
+    if (clientErr) {
+      addLog("error", `Failed to load client: ${clientErr.message}`);
+      setLoading(false);
+      return;
+    }
+
     if (clients) {
       setClientId(clients.id);
+      addLog("info", `Client loaded: ${clients.id.slice(0, 8)}...`);
 
       const { data: runHistory } = await supabase
         .from("collection_runs")
@@ -84,11 +153,25 @@ export default function CollectPage() {
       if (runHistory) setRuns(runHistory);
     }
     setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Handle date preset change
+  function handlePresetChange(presetId: string) {
+    setDatePreset(presetId);
+    const preset = DATE_PRESETS.find((p) => p.id === presetId);
+    if (preset) {
+      const dates = preset.getDates();
+      if (dates) {
+        setDateStart(dates.start);
+        setDateEnd(dates.end);
+      }
+    }
+  }
 
   // Toggle platform selection
   function togglePlatform(platformId: string) {
@@ -101,12 +184,22 @@ export default function CollectPage() {
 
   // Run collection
   async function handleCollect() {
-    if (!clientId || selectedPlatforms.length === 0) return;
+    if (!clientId || selectedPlatforms.length === 0) {
+      addLog("warn", "Cannot collect: no client or platforms selected.");
+      return;
+    }
 
     setIsCollecting(true);
-    setLastResult(null);
+    addLog("info", `Starting collection for ${selectedPlatforms.join(", ")}...`);
+    addLog("info", `Mode: ${collectMode} | Range: ${dateStart} → ${dateEnd} | Min engagement: ${minEngagement}`);
+
+    if (collectMode === "search") {
+      addLog("info", `Search query: "${searchQuery}"`);
+    }
 
     try {
+      addLog("info", "Sending request to /api/collect...");
+
       const res = await fetch("/api/collect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,27 +214,30 @@ export default function CollectPage() {
         }),
       });
 
+      addLog("info", `Response status: ${res.status} ${res.statusText}`);
+
       const data = await res.json();
 
       if (!res.ok) {
-        setLastResult({
-          posts_collected: 0,
-          errors: [data.error || "Unknown error"],
-          status: "failed",
-        });
+        addLog("error", `API error: ${data.error || "Unknown error"}`);
+        if (data.details) addLog("error", `Details: ${data.details}`);
       } else {
-        setLastResult(data);
+        addLog("success", `Collection complete — ${data.posts_collected} posts collected`);
+        if (data.errors && data.errors.length > 0) {
+          for (const err of data.errors) {
+            addLog("warn", err);
+          }
+        }
+        addLog("info", `Run ID: ${data.run_id}`);
         // Reload run history
         loadData();
       }
     } catch (err) {
-      setLastResult({
-        posts_collected: 0,
-        errors: [err instanceof Error ? err.message : "Network error"],
-        status: "failed",
-      });
+      const msg = err instanceof Error ? err.message : "Network error";
+      addLog("error", `Fetch failed: ${msg}`);
     } finally {
       setIsCollecting(false);
+      addLog("info", "—— Collection run finished ——");
     }
   }
 
@@ -262,26 +358,64 @@ export default function CollectPage() {
               <CardTitle className="text-lg">Filters</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Date Presets */}
+              <div className="space-y-2">
+                <Label>Time Range</Label>
+                <div className="flex flex-wrap gap-2">
+                  {DATE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => handlePresetChange(preset.id)}
+                      className={`
+                        rounded-full border px-3 py-1 text-xs font-medium transition-colors
+                        ${datePreset === preset.id
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+                        }
+                      `}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Inputs (always visible, editable in custom mode, read-only otherwise) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="date-start">Start Date</Label>
+                  <Label htmlFor="date-start" className="text-xs text-muted-foreground">
+                    Start Date
+                  </Label>
                   <Input
                     id="date-start"
                     type="date"
                     value={dateStart}
-                    onChange={(e) => setDateStart(e.target.value)}
+                    onChange={(e) => {
+                      setDateStart(e.target.value);
+                      setDatePreset("custom");
+                    }}
+                    className={datePreset !== "custom" ? "opacity-60" : ""}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="date-end">End Date</Label>
+                  <Label htmlFor="date-end" className="text-xs text-muted-foreground">
+                    End Date
+                  </Label>
                   <Input
                     id="date-end"
                     type="date"
                     value={dateEnd}
-                    onChange={(e) => setDateEnd(e.target.value)}
+                    onChange={(e) => {
+                      setDateEnd(e.target.value);
+                      setDatePreset("custom");
+                    }}
+                    className={datePreset !== "custom" ? "opacity-60" : ""}
                   />
                 </div>
               </div>
+
+              <Separator />
+
               <div className="space-y-2">
                 <Label htmlFor="min-engagement">Min. Engagement</Label>
                 <Input
@@ -326,28 +460,76 @@ export default function CollectPage() {
             )}
           </Button>
 
-          {/* Last Result */}
-          {lastResult && (
-            <Card className={lastResult.status === "failed" ? "border-destructive" : "border-success"}>
-              <CardContent className="py-4">
-                <div className="flex items-center gap-3">
-                  <div className={`h-3 w-3 rounded-full ${lastResult.status === "failed" ? "bg-destructive" : "bg-success"}`} />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {lastResult.status === "failed"
-                        ? "Collection failed"
-                        : `Collected ${lastResult.posts_collected} posts`}
-                    </p>
-                    {lastResult.errors && lastResult.errors.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {lastResult.errors.join("; ")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* ── Log Window ────────────────────────────────────── */}
+          <div className="rounded-lg border border-border overflow-hidden">
+            <button
+              onClick={() => setLogOpen(!logOpen)}
+              className="flex w-full items-center justify-between bg-muted/50 px-4 py-2.5 text-left transition-colors hover:bg-muted"
+            >
+              <div className="flex items-center gap-2">
+                <svg
+                  className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${logOpen ? "rotate-90" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+                <span className="text-sm font-medium">System Log</span>
+                {logs.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    {logs.length}
+                  </Badge>
+                )}
+                {logs.some((l) => l.level === "error") && (
+                  <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                )}
+              </div>
+              {logs.length > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLogs([]);
+                  }}
+                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </button>
+              )}
+            </button>
+
+            {logOpen && (
+              <div className="max-h-64 overflow-y-auto bg-[#1a1a2e] p-3 font-mono text-xs">
+                {logs.length === 0 ? (
+                  <p className="text-gray-500 italic">
+                    No log entries yet. Click &quot;Collect&quot; to start.
+                  </p>
+                ) : (
+                  logs.map((entry, i) => (
+                    <div key={i} className="flex gap-2 py-0.5 leading-relaxed">
+                      <span className="shrink-0 text-gray-500">{entry.time}</span>
+                      <span
+                        className={`shrink-0 uppercase font-semibold ${
+                          entry.level === "error"
+                            ? "text-red-400"
+                            : entry.level === "warn"
+                            ? "text-yellow-400"
+                            : entry.level === "success"
+                            ? "text-emerald-400"
+                            : "text-blue-400"
+                        }`}
+                      >
+                        {entry.level === "info" ? "INFO" : entry.level === "success" ? " OK " : entry.level === "warn" ? "WARN" : " ERR"}
+                      </span>
+                      <span className="text-gray-300 break-all">{entry.message}</span>
+                    </div>
+                  ))
+                )}
+                <div ref={logEndRef} />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: Run History */}

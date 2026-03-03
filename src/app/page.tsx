@@ -5,10 +5,13 @@ export default function Home() {
     <div className="flex flex-col items-center justify-center h-full gap-8 p-8">
       <div className="text-center">
         <h1 className="font-display text-4xl tracking-tight">
-          IPR Social Pulse
+          MERIDIAN
         </h1>
+        <p className="mt-2 text-sm font-medium text-muted-foreground tracking-wide uppercase">
+          Northwestern IPR
+        </p>
         <p className="mt-3 text-lg text-muted-foreground">
-          AI-powered social media intelligence for Northwestern IPR
+          AI-powered social media intelligence platform
         </p>
       </div>
 

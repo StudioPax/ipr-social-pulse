@@ -25,7 +25,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IPR Social Pulse",
+  title: "MERIDIAN — Northwestern IPR",
   description:
     "AI-powered social media intelligence platform for Northwestern IPR",
 };
