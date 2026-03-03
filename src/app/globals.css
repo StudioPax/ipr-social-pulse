@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* UI Spec §7 — Light theme */
+    --background: 40 7% 98%;          /* #FAFAF9 */
+    --foreground: 60 7% 7%;           /* #111110 */
+
+    --card: 0 0% 100%;                /* #FFFFFF */
+    --card-foreground: 60 7% 7%;      /* #111110 */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 60 7% 7%;
+
+    /* App Spec §6.2 — Northwestern Purple */
+    --primary: 266 53% 34%;           /* #4E2A84 */
+    --primary-foreground: 0 0% 100%;
+
+    /* App Spec §6.2 — Lighter Purple */
+    --secondary: 262 30% 74%;         /* #B6ACD1 */
+    --secondary-foreground: 60 7% 7%;
+
+    --muted: 40 5% 95%;               /* #F4F4F3 (surface-muted) */
+    --muted-foreground: 50 3% 42%;    /* #6E6E6A */
+
+    /* UI Spec §7 — Accent (blue for links/CTAs) */
+    --accent: 217 91% 60%;            /* #2563EB */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;         /* #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 72% 29%;           /* #16A34A */
+    --success-foreground: 0 0% 100%;
+
+    /* App Spec §6.2 — Studio Pax Orange (brand accent) */
+    --brand-accent: 18 100% 60%;      /* #FF6B35 */
+
+    --border: 50 4% 90%;              /* #E5E5E3 */
+    --input: 50 4% 90%;
+    --ring: 217 91% 60%;              /* accent blue for focus rings */
+
+    /* UI Spec §7 — Colorblind-safe chart palette (8 stops) */
+    --chart-1: 217 91% 60%;           /* #2563EB */
+    --chart-2: 36 90% 43%;            /* #D97706 */
+    --chart-3: 142 72% 29%;           /* #16A34A */
+    --chart-4: 271 81% 56%;           /* #9333EA */
+    --chart-5: 330 81% 60%;           /* #DB2777 */
+    --chart-6: 189 94% 37%;           /* #0891B2 */
+    --chart-7: 85 78% 33%;            /* #65A30D */
+    --chart-8: 15 90% 50%;            /* #EA580C */
+
+    --surface-hover: 40 5% 97%;
+
+    --radius: 0.5rem;                 /* 8px — App Spec §6.2 */
+  }
+
+  .dark {
+    /* UI Spec §7 — Dark theme */
+    --background: 60 7% 5%;           /* #0F0F0E */
+    --foreground: 50 5% 93%;          /* #EEEEEC */
+
+    --card: 60 4% 10%;                /* #1A1A19 */
+    --card-foreground: 50 5% 93%;
+
+    --popover: 60 4% 10%;
+    --popover-foreground: 50 5% 93%;
+
+    --primary: 266 53% 44%;           /* lighter purple for dark mode */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 262 20% 40%;
+    --secondary-foreground: 50 5% 93%;
+
+    --muted: 60 2% 14%;               /* #242423 */
+    --muted-foreground: 50 1% 53%;    /* #888884 */
+
+    --accent: 217 92% 62%;            /* #3B82F6 */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;         /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;           /* #22C55E */
+    --success-foreground: 0 0% 100%;
+
+    --brand-accent: 18 100% 60%;
+
+    --border: 60 3% 18%;              /* #2E2E2C */
+    --input: 60 3% 18%;
+    --ring: 217 92% 62%;
+
+    --chart-1: 217 92% 62%;
+    --chart-2: 36 90% 50%;
+    --chart-3: 142 71% 45%;
+    --chart-4: 271 81% 60%;
+    --chart-5: 330 81% 64%;
+    --chart-6: 189 94% 43%;
+    --chart-7: 85 78% 40%;
+    --chart-8: 15 90% 55%;
+
+    --surface-hover: 60 2% 12%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  /* UI Spec §6 — Numbers always tabular in tables/charts */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
