@@ -1,16 +1,16 @@
 import Link from "next/link";
+import { MeridianLogo } from "@/components/icons/meridian-logo";
 
 export default function Home() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-8 p-8">
-      <div className="text-center">
-        <h1 className="font-display text-4xl tracking-tight">
-          MERIDIAN
-        </h1>
-        <p className="mt-2 text-sm font-medium text-muted-foreground tracking-wide uppercase">
+      <div className="flex flex-col items-center text-center">
+        <MeridianLogo variant="mark" className="h-16 w-16 text-primary mb-4" />
+        <MeridianLogo variant="full" className="h-8 text-foreground" />
+        <p className="mt-3 text-sm font-medium text-muted-foreground tracking-wide uppercase">
           Northwestern IPR
         </p>
-        <p className="mt-3 text-lg text-muted-foreground">
+        <p className="mt-2 text-lg text-muted-foreground">
           AI-powered social media intelligence platform
         </p>
       </div>
