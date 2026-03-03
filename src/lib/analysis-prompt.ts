@@ -3,7 +3,7 @@
 
 import { PILLARS, PERFORMANCE_TIERS, RECOMMENDED_ACTIONS } from "@/lib/tokens";
 
-export const ANALYSIS_PROMPT_VERSION = "v1.0";
+export const ANALYSIS_PROMPT_VERSION = "v1.1";
 
 /** Shape of a post sent to the LLM for analysis */
 export interface PostForAnalysis {
@@ -72,6 +72,18 @@ Action mapping:
 - T3 → promote_niche (invest in promoting under-amplified policy content)
 - T4 → diagnose (investigate why this underperforms)
 - Any post with policy_relevance < 0.2 → archive
+
+## Sentiment Classification Rules
+IMPORTANT: Sentiment reflects the **communicative intent** of the post, NOT the topic being discussed.
+- A post promoting faculty research about a negative topic (e.g., rising bias, health disparities, climate damage) should be classified as **positive** or **neutral** — because the intent is to celebrate or share IPR scholarship.
+- A post expressing concern, criticism, or disappointment about IPR or its work should be classified as **negative**.
+- Use **mixed** only when the post genuinely expresses conflicting sentiments (e.g., celebrating a grant while mourning a colleague).
+- Use **negative** only when the post's own tone/framing is negative (e.g., lamenting funding cuts, reporting institutional setbacks).
+
+Examples:
+- "New research shows rising inequality" (promoting research) → positive or neutral
+- "Alarming new findings on bias" (promoting research with urgent framing) → neutral
+- "Disappointed by the funding decision" (expressing frustration) → negative
 
 ## Content Types
 - research_promo: Promoting IPR research, publications, working papers
