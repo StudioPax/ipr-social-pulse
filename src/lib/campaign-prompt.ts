@@ -1,10 +1,13 @@
 /**
- * @module campaign-prompt — AI Brief + Strategy prompt templates for Content Campaigns
- * Module 7 — Content Campaigns Specification v1.1
+ * @module campaign-prompt — AI Brief + Strategy + Import prompt templates for Content Campaigns
+ * Module 7 — Content Campaigns Specification v1.1 + Campaign Import Pipeline v1.0
  */
+
+import { CAMPAIGN_CHANNELS, TARGET_AUDIENCES } from "./tokens";
 
 export const CAMPAIGN_BRIEF_PROMPT_VERSION = "brief-v1.0";
 export const CAMPAIGN_STRATEGY_PROMPT_VERSION = "strategy-v1.0";
+export const CAMPAIGN_IMPORT_PROMPT_VERSION = "prompt-import-v1.0";
 
 // ── Generate AI Brief (Optional) ──────────────────────────────────────────
 
@@ -347,4 +350,236 @@ export interface StrategyOutput {
   embargo_notes: string;
   faculty_engagement_plan: string;
   cross_promotion_opps: string[];
+}
+
+// ── Import Prompt Builder (Mechanical — no LLM call) ─────────────────────
+
+export interface ImportPromptDocument {
+  role: string;
+  title: string;
+  content_text: string;
+}
+
+export interface ImportPromptStrategy {
+  key_messages: string[];
+  audience_narratives: Record<string, AudienceNarrative>;
+  fw_values_lead: string;
+  fw_causal_chain: string;
+  fw_cultural_freight: string;
+  fw_thematic_bridge: string;
+  fw_solutions_framing: string;
+}
+
+export interface ImportPromptInput {
+  // Campaign metadata
+  title: string;
+  campaign_type: string;
+  duration_weeks: number;
+  channels: string[];
+  target_audiences: string[];
+  research_authors: string[];
+  research_doi?: string;
+  embargo_until?: string;
+
+  // Documents (embedded in prompt)
+  documents: ImportPromptDocument[];
+
+  // Strategy analysis curated subset (optional — might not exist yet)
+  strategy?: ImportPromptStrategy | null;
+}
+
+/**
+ * Build the import prompt string mechanically from campaign data.
+ * No LLM call — pure template concatenation. Deterministic output for same inputs.
+ *
+ * The resulting prompt is designed to be pasted into Claude App (which has
+ * campaign blueprints as project knowledge) to generate a CampaignImportSchema JSON.
+ */
+export function buildImportPrompt(input: ImportPromptInput): string {
+  const sections: string[] = [];
+  const timestamp = new Date().toISOString();
+
+  // ── Header ────────────────────────────────────────────────────────────
+  sections.push(`=== MERIDIAN CAMPAIGN PROMPT ===
+Version: ${CAMPAIGN_IMPORT_PROMPT_VERSION}
+Generated: ${timestamp}`);
+
+  // ── Campaign Metadata ──────────────────────────────────────────────────
+  const channelList = input.channels.length > 0
+    ? input.channels.join(", ")
+    : "AUTO-MIX: recommend the best channel combination from available channels";
+
+  sections.push(`
+== CAMPAIGN ==
+Name: ${input.title}
+Type: ${input.campaign_type}
+Duration: ${input.duration_weeks} weeks
+Channels: ${channelList}
+Audiences: ${input.target_audiences.join(", ")}
+Authors: ${input.research_authors.join(", ") || "Not specified"}
+DOI: ${input.research_doi || "N/A"}
+Embargo: ${input.embargo_until || "None"}
+Start date: Relative (Week 1, Day 1)`);
+
+  // ── Research Documents ──────────────────────────────────────────────────
+  const docSections: string[] = [];
+
+  // Priority order: research_notes → ai_brief → supporting → research_paper
+  const notes = input.documents.filter((d) => d.role === "research_notes");
+  const briefs = input.documents.filter((d) => d.role === "ai_brief");
+  const supporting = input.documents.filter((d) => d.role === "supporting");
+  const papers = input.documents.filter((d) => d.role === "research_paper");
+
+  if (notes.length > 0) {
+    docSections.push(`--- Research Notes (IPR Marketing — primary source) ---`);
+    for (const doc of notes) {
+      docSections.push(doc.content_text);
+    }
+  }
+
+  if (briefs.length > 0) {
+    docSections.push(`\n--- AI Brief ---`);
+    for (const doc of briefs) {
+      docSections.push(doc.content_text);
+    }
+  }
+
+  if (supporting.length > 0) {
+    docSections.push(`\n--- Supporting Documents ---`);
+    for (const doc of supporting) {
+      docSections.push(`[${doc.title}]`);
+      docSections.push(doc.content_text);
+    }
+  }
+
+  if (papers.length > 0) {
+    docSections.push(`\n--- Research Paper (reference) ---`);
+    for (const doc of papers) {
+      // Truncate very long papers to ~4000 words
+      const words = doc.content_text.split(/\s+/);
+      if (words.length > 4000) {
+        docSections.push(
+          words.slice(0, 4000).join(" ") +
+            "\n\n[Truncated — see Research Notes for curated summary]"
+        );
+      } else {
+        docSections.push(doc.content_text);
+      }
+    }
+  }
+
+  if (docSections.length > 0) {
+    sections.push(`\n== RESEARCH CONTEXT ==\n${docSections.join("\n")}`);
+  } else {
+    sections.push(`\n== RESEARCH CONTEXT ==\nNo documents attached. Generate based on campaign metadata only.`);
+  }
+
+  // ── Strategy Anchor (curated subset) ───────────────────────────────────
+  if (input.strategy) {
+    const s = input.strategy;
+    const stratParts: string[] = [];
+
+    stratParts.push(`\n== STRATEGY ANCHOR ==
+(Generated by Meridian's Strategy module — use as directional guidance)`);
+
+    // Key messages
+    if (s.key_messages.length > 0) {
+      stratParts.push(`\nKey Messages:`);
+      s.key_messages.forEach((msg, i) => {
+        stratParts.push(`  ${i + 1}. ${msg}`);
+      });
+    }
+
+    // Audience narratives
+    if (Object.keys(s.audience_narratives).length > 0) {
+      stratParts.push(`\nAudience Narratives:`);
+      for (const [audience, narrative] of Object.entries(s.audience_narratives)) {
+        stratParts.push(`  [${audience}]`);
+        stratParts.push(`    Hook: ${narrative.hook}`);
+        stratParts.push(`    Framing: ${narrative.framing}`);
+        stratParts.push(`    Key stat: ${narrative.key_stat}`);
+        stratParts.push(`    CTA: ${narrative.call_to_action}`);
+        stratParts.push(`    Tone: ${narrative.tone}`);
+      }
+    }
+
+    // FrameWorks guidance
+    stratParts.push(`\nFrameWorks Guidance:`);
+    stratParts.push(`  Values Lead: ${s.fw_values_lead || "(not generated)"}`);
+    stratParts.push(`  Causal Chain: ${s.fw_causal_chain || "(not generated)"}`);
+    stratParts.push(`  Cultural Freight (avoid): ${s.fw_cultural_freight || "(not generated)"}`);
+    stratParts.push(`  Thematic Bridge: ${s.fw_thematic_bridge || "(not generated)"}`);
+    stratParts.push(`  Solutions Framing: ${s.fw_solutions_framing || "(not generated)"}`);
+
+    sections.push(stratParts.join("\n"));
+  }
+
+  // ── Channel Specifications ──────────────────────────────────────────────
+  const channelSpecs = CAMPAIGN_CHANNELS
+    .filter((c) => input.channels.length === 0 || input.channels.includes(c.value))
+    .map((c) => `  ${c.value}: ${c.charLimit ? `${c.charLimit} char limit` : "no char limit"}`)
+    .join("\n");
+
+  const audienceList = TARGET_AUDIENCES
+    .filter((a) => input.target_audiences.includes(a.value))
+    .map((a) => `  ${a.value}: ${a.label}`)
+    .join("\n");
+
+  // ── Output Instructions ─────────────────────────────────────────────────
+  const validChannels = CAMPAIGN_CHANNELS.map((c) => c.value).join(", ");
+  const validAudiences = TARGET_AUDIENCES.map((a) => a.value).join(", ");
+
+  sections.push(`
+== OUTPUT INSTRUCTIONS ==
+Generate a complete campaign calendar as a JSON object.
+
+You MUST follow this exact schema:
+
+{
+  "campaign_type": "${input.campaign_type}",
+  "duration_weeks": ${input.duration_weeks},
+  "channels_used": [list of channels actually used],
+  "deliverables": [
+    {
+      "week_number": <integer, 1 to ${input.duration_weeks}>,
+      "day_of_week": "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday",
+      "publish_order": <integer, sequence within that day>,
+      "channel": <one of: ${validChannels}>,
+      "audience_segment": <one of: ${validAudiences}>,
+      "stage": "pre_launch" | "rollout" | "sustain" | "measure",
+      "suggested_content": "<COMPLETE draft copy for this channel>",
+      "narrative_angle": "<the framing/hook for this audience on this channel>",
+      "call_to_action": "<what the audience should do>",
+      "hashtags": ["#tag1", "#tag2"],
+      "mentions": ["@mention1"],
+      "media_suggestion": "<what visual/media to pair>",
+      "key_message_ids": [<indices of key messages used, optional>],
+      "char_limit": <channel char limit, optional>
+    }
+  ]
+}
+
+Channel specifications:
+${channelSpecs}
+
+Target audiences:
+${audienceList}
+
+Rules:
+- campaign_type MUST be "${input.campaign_type}"
+- duration_weeks MUST be ${input.duration_weeks}
+- week_number must be between 1 and ${input.duration_weeks}
+- Each deliverable is one publishable piece of content
+- Distribute content across the full ${input.duration_weeks}-week span
+- Use the stage progression: pre_launch → rollout → sustain → measure
+- Respect channel character limits listed above
+- Content must follow FrameWorks methodology from the Strategy Anchor (if provided)
+- suggested_content must be COMPLETE DRAFT COPY, not placeholders or summaries
+- hashtags must include the # prefix
+- mentions must include the @ prefix
+- Return ONLY the JSON object — no markdown, no code fences, no explanation
+
+== END PROMPT ==`);
+
+  return sections.join("\n");
 }
