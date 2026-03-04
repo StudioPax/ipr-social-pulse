@@ -79,6 +79,15 @@ const config: Config = {
         content: "900px",
         dashboard: "1400px",
       },
+      keyframes: {
+        indeterminate: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(400%)" },
+        },
+      },
+      animation: {
+        indeterminate: "indeterminate 1.5s ease-in-out infinite",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

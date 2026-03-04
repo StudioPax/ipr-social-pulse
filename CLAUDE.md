@@ -42,7 +42,7 @@ Always read these before making architectural decisions or building new features
 
 ## Database
 
-8 tables in Supabase, all with RLS enabled and anon-key policies:
+12 tables in Supabase, all with RLS enabled and anon-key policies:
 - `clients` — multi-tenant client profiles
 - `social_accounts` — platform connections per client
 - `client_settings` — per-client settings (API keys, preferences). UNIQUE on `(client_id, setting_key)`
@@ -51,6 +51,10 @@ Always read these before making architectural decisions or building new features
 - `analysis_runs` — AI analysis job history
 - `post_analyses` — AI analysis results per post (UNIQUE on `post_id`)
 - `post_outreach` — amplifier/influencer tracking per post
+- `campaigns` — content campaign projects (UNIQUE title per client)
+- `campaign_documents` — research papers, notes, AI briefs, supporting docs per campaign
+- `campaign_channels` — channel-specific content plans per campaign
+- `campaign_analyses` — AI strategy output per campaign (UNIQUE on `campaign_id`)
 
 **Default client:** Northwestern IPR (`8734831a-16e0-4cbf-8335-7322855b07b1`)
 **Bluesky handle:** `ipratnu.bsky.social`
@@ -79,7 +83,8 @@ See `README.md` for the full feature status table. In summary:
 - **Phase 1 (MVP) — Complete:** app shell, Bluesky connector, collection UI with log window, dashboard with charts, analyze page with data table, settings page
 - **Phase 2 (AI Analysis) — Complete:** Claude + Gemini API integration, pillar tagging, sentiment, tiering, analysis panel with SSE streaming log, filter bar, expandable rows
 - **Phase 2.5 (Dashboard Enhancements) — Complete:** date range filter with presets + custom range, server-side Supabase date filtering, Posts Over Time chart with full-range fill + post snippet tooltips, hashtags in expanded row detail, improved expand arrows
-- **Phase 3 (Multi-Platform + Outreach)** is next
+- **Phase 3A (Content Campaigns) — In Progress:** 4 DB tables, 8+ API routes (CRUD + AI generation), campaign list/detail pages, AI Brief + Strategy generation with SSE streaming, campaign-prompt.ts (brief-v1.0, strategy-v1.0)
+- **Phase 3B (Multi-Platform + Outreach)** is next
 
 ### Terminology: "Save project status" / "Save status"
 When the user says "save project status" or "save status," update both `CLAUDE.md` (this file) and `README.md` to reflect the current state of the project — completed features, pending work, file structure changes, new DB fields, etc.

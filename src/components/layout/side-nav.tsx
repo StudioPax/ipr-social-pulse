@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/collect", label: "Collect", icon: "📥" },
   { href: "/analyze", label: "Analyze", icon: "🔬" },
   { href: "/outreach", label: "Outreach", icon: "📡" },
+  { href: "/campaigns", label: "Campaigns", icon: "📋" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ] as const;
 

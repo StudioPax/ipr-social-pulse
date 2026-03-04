@@ -74,3 +74,72 @@ export const DATE_RANGE_PRESETS = [
 ] as const;
 
 export type DateRangePreset = (typeof DATE_RANGE_PRESETS)[number]["value"];
+
+/** Campaign statuses */
+export const CAMPAIGN_STATUSES = [
+  "draft",
+  "active",
+  "completed",
+  "archived",
+] as const;
+
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
+
+/** Campaign channel statuses */
+export const CHANNEL_STATUSES = [
+  "planned",
+  "drafted",
+  "approved",
+  "published",
+  "skipped",
+] as const;
+
+export type ChannelStatus = (typeof CHANNEL_STATUSES)[number];
+
+/** Target audiences */
+export const TARGET_AUDIENCES = [
+  { value: "policymaker", label: "Policymaker" },
+  { value: "faculty", label: "Faculty" },
+  { value: "donor", label: "Donor" },
+  { value: "public", label: "Public" },
+  { value: "media", label: "Media" },
+  { value: "nu_leadership", label: "NU Leadership" },
+] as const;
+
+export type TargetAudience = (typeof TARGET_AUDIENCES)[number]["value"];
+
+/** Campaign channels */
+export const CAMPAIGN_CHANNELS = [
+  { value: "bluesky", label: "Bluesky", charLimit: 300 },
+  { value: "twitter", label: "Twitter/X", charLimit: 280 },
+  { value: "linkedin", label: "LinkedIn", charLimit: 3000 },
+  { value: "facebook", label: "Facebook", charLimit: 63206 },
+  { value: "instagram", label: "Instagram", charLimit: 2200 },
+  { value: "website", label: "Website", charLimit: null },
+  { value: "newsletter", label: "Newsletter", charLimit: null },
+  { value: "press_release", label: "Press Release", charLimit: null },
+  { value: "op_ed", label: "Op-Ed", charLimit: null },
+  { value: "event", label: "Event", charLimit: null },
+  { value: "podcast", label: "Podcast", charLimit: null },
+] as const;
+
+export type CampaignChannel = (typeof CAMPAIGN_CHANNELS)[number]["value"];
+
+/** Campaign lifecycle phases */
+export const CAMPAIGN_PHASES = [
+  { value: "launch", label: "Launch", description: "Initial rollout — awareness and reach" },
+  { value: "growth", label: "Growth", description: "Expand engagement and deepen audience connection" },
+  { value: "maintain", label: "Maintain", description: "Sustain momentum with fresh content and updates" },
+] as const;
+
+export type CampaignPhase = (typeof CAMPAIGN_PHASES)[number]["value"];
+
+/** Campaign document roles */
+export const DOCUMENT_ROLES = [
+  { value: "research_paper", label: "Research Paper", description: "Core research document" },
+  { value: "research_notes", label: "Research Notes", description: "IPR marketing's curated summary" },
+  { value: "ai_brief", label: "AI Brief", description: "AI-generated condensed summary" },
+  { value: "supporting", label: "Supporting", description: "Interview transcripts, fact sheets, etc." },
+] as const;
+
+export type DocumentRole = (typeof DOCUMENT_ROLES)[number]["value"];

@@ -4,7 +4,7 @@
 
 **Client:** Northwestern IPR
 **Built by:** Studio Pax
-**Status:** Phase 2.5 (Dashboard Enhancements) — Complete | Phase 3 — Next
+**Status:** Phase 3A (Content Campaigns) — In Progress
 **Last updated:** 2026-03-03
 
 ---
@@ -71,7 +71,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<set in Vercel>
 
 ---
 
-## Database Schema (8 Tables)
+## Database Schema (12 Tables)
 
 All tables have RLS enabled with anon-key policies for SELECT, INSERT, and UPDATE.
 
@@ -173,6 +173,42 @@ post_outreach
 ├── action_flag (text)
 ├── cited_research_title (text), cited_authors (text[])
 ├── published_at (timestamptz)
+
+campaigns (NEW — Module 7)
+├── id (uuid, PK)
+├── client_id → clients.id
+├── title (text, UNIQUE per client)
+├── status (text) — draft, active, completed, archived
+├── research_authors, pillar_tags, target_audiences (text[])
+├── research_doi, research_url, publication_date, embargo_until (text/date)
+├── created_by (text), created_at / updated_at (timestamptz)
+
+campaign_documents (NEW — Module 7)
+├── id (uuid, PK)
+├── campaign_id → campaigns.id
+├── document_role (text) — research_paper, research_notes, ai_brief, supporting
+├── title, content_text, source (text)
+├── word_count (int), is_included (bool), sort_order (int)
+├── created_at / updated_at (timestamptz)
+
+campaign_channels (NEW — Module 7)
+├── id (uuid, PK)
+├── campaign_id → campaigns.id
+├── channel (text), audience_segment (text)
+├── suggested_content, edited_content (text)
+├── char_count (int), hashtags, mentions (text[])
+├── media_suggestion (text)
+├── status (text) — planned, drafted, approved, published, skipped
+├── scheduled_for (timestamptz), published_post_id → posts.id
+├── publish_order (int)
+
+campaign_analyses (NEW — Module 7)
+├── id (uuid, PK)
+├── campaign_id → campaigns.id (UNIQUE)
+├── strategy_output (jsonb)
+├── key_messages (text[])
+├── model_used, prompt_version (text)
+├── generated_at (timestamptz)
 ```
 
 ### Seed Data
@@ -193,11 +229,24 @@ src/
 │   ├── dashboard/page.tsx      # KPI cards + date range filter + 3 tabbed Recharts views
 │   ├── collect/page.tsx        # Collection UI + log window + date presets
 │   ├── analyze/page.tsx        # Posts table + stats + AI analysis panel
+│   ├── campaigns/
+│   │   ├── page.tsx            # Campaign list: card grid + filters + create dialog
+│   │   └── [id]/page.tsx       # Campaign detail: documents, strategy, channel plan
 │   ├── outreach/page.tsx       # Placeholder (Phase 3)
 │   ├── settings/page.tsx       # Client profile + social accounts + AI model keys
 │   └── api/
 │       ├── collect/route.ts    # POST: run collection, GET: run history
 │       ├── analyze/route.ts    # POST: run AI analysis (SSE stream), GET: prescan/progress/history
+│       ├── campaigns/
+│       │   ├── route.ts              # GET: list campaigns, POST: create campaign
+│       │   └── [id]/
+│       │       ├── route.ts          # GET/PATCH/DELETE campaign
+│       │       ├── documents/route.ts        # GET/POST documents
+│       │       ├── documents/[docId]/route.ts # GET/PATCH/DELETE document
+│       │       ├── channels/route.ts         # GET/POST channels
+│       │       ├── channels/[channelId]/route.ts # PATCH/DELETE channel
+│       │       ├── generate-brief/route.ts   # POST: AI Brief generation (SSE)
+│       │       └── generate-strategy/route.ts # POST: Strategy generation (SSE)
 │       └── settings/
 │           └── keys/route.ts   # GET: key status, POST: save key, PUT: test connection
 ├── components/
@@ -209,7 +258,8 @@ src/
 │   ├── data/
 │   │   ├── posts-table.tsx     # TanStack Table: sortable, filterable, expandable rows
 │   │   ├── analysis-panel.tsx  # AI analysis UI: model selector, pre-scan, run buttons, log
-│   │   └── date-range-filter.tsx # Date range filter: presets + custom range
+│   │   ├── date-range-filter.tsx # Date range filter: presets + custom range
+│   │   └── campaign-create-dialog.tsx # Campaign creation dialog
 │   └── ui/                     # shadcn/ui components (13)
 │       ├── badge.tsx
 │       ├── button.tsx
@@ -227,6 +277,7 @@ src/
 │   └── use-toast.ts            # Toast notification hook
 ├── lib/
 │   ├── analysis-prompt.ts      # LLM prompt template, JSON schema, version (v1.4)
+│   ├── campaign-prompt.ts     # Campaign AI Brief + Strategy prompts (brief-v1.0, strategy-v1.0)
 │   ├── bluesky.ts              # Bluesky AT Protocol client
 │   ├── charts.ts               # Recharts theme config
 │   ├── claude.ts               # Claude API client (claude-sonnet-4)
@@ -235,7 +286,7 @@ src/
 │   ├── tokens.ts               # Design token constants (pillars, tiers, actions, date presets)
 │   └── utils.ts                # cn() utility
 └── types/
-    └── database.ts             # Supabase generated types (8 tables)
+    └── database.ts             # Supabase generated types (12 tables)
 ```
 
 ---
@@ -286,7 +337,24 @@ src/
 | **PostsTable — Hashtag Display** | Done | Hashtags shown as outlined monospace badges in expanded row detail |
 | **PostsTable — Expand Arrow** | Done | SVG chevron with hover state + rotation animation (replaces unicode arrows) |
 
-### Phase 3 — Multi-Platform + Outreach (Next)
+### Phase 3A — Content Campaigns (In Progress)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Campaign DB Schema** | Done | 4 tables: campaigns, campaign_documents, campaign_channels, campaign_analyses |
+| **Campaign CRUD API** | Done | 8 API routes: list, create, get, update, archive, documents, channels |
+| **Campaign Prompt Templates** | Done | AI Brief (brief-v1.0) + Strategy (strategy-v1.0), FrameWorks methodology |
+| **Campaign List Page** | Done | Card grid with filters (status, pillar, search), create dialog |
+| **Campaign Detail Page** | Done | Document management, strategy view, channel plan display |
+| **AI Brief Generation** | Done | SSE streaming, parses research paper, saves as campaign_document |
+| **Strategy Generation** | Done | SSE streaming, reads all docs, generates audience narratives + channel plans |
+| **Campaign Design Tokens** | Done | Statuses, channels, audiences, document roles in tokens.ts |
+| **Side Nav — Campaigns** | Done | Added to navigation with Megaphone icon |
+| End-to-end Testing | Not started | Create campaign → upload paper → generate brief → generate strategy |
+| Channel Content Editor | Not started | Edit suggested content per channel with char count |
+| Publish-to-Post Bridge | Not started | campaign_channels.published_post_id → posts table |
+
+### Phase 3B — Multi-Platform + Outreach (Next)
 
 | Feature | Status | Notes |
 |---------|--------|-------|

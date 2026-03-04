@@ -68,6 +68,338 @@ export type Database = {
           },
         ]
       }
+      campaign_analyses: {
+        Row: {
+          analyzed_at: string | null
+          audience_narratives: Json
+          campaign_id: string
+          channel_strategy: Json
+          cross_promotion_opps: string[] | null
+          documents_used: Json
+          embargo_notes: string | null
+          faculty_engagement_plan: string | null
+          fw_causal_chain: string | null
+          fw_cultural_freight: string | null
+          fw_solutions_framing: string | null
+          fw_thematic_bridge: string | null
+          fw_values_lead: string | null
+          id: string
+          key_findings: string[] | null
+          key_messages: string[] | null
+          llm_response_raw: Json | null
+          model_version: string | null
+          newsworthiness: string | null
+          nu_alignment_mapping: string | null
+          pillar_rationale: string | null
+          policy_implications: string[] | null
+          prompt_version: string | null
+          research_summary: string | null
+          timing_recommendations: string | null
+        }
+        Insert: {
+          analyzed_at?: string | null
+          audience_narratives?: Json
+          campaign_id: string
+          channel_strategy?: Json
+          cross_promotion_opps?: string[] | null
+          documents_used?: Json
+          embargo_notes?: string | null
+          faculty_engagement_plan?: string | null
+          fw_causal_chain?: string | null
+          fw_cultural_freight?: string | null
+          fw_solutions_framing?: string | null
+          fw_thematic_bridge?: string | null
+          fw_values_lead?: string | null
+          id?: string
+          key_findings?: string[] | null
+          key_messages?: string[] | null
+          llm_response_raw?: Json | null
+          model_version?: string | null
+          newsworthiness?: string | null
+          nu_alignment_mapping?: string | null
+          pillar_rationale?: string | null
+          policy_implications?: string[] | null
+          prompt_version?: string | null
+          research_summary?: string | null
+          timing_recommendations?: string | null
+        }
+        Update: {
+          analyzed_at?: string | null
+          audience_narratives?: Json
+          campaign_id?: string
+          channel_strategy?: Json
+          cross_promotion_opps?: string[] | null
+          documents_used?: Json
+          embargo_notes?: string | null
+          faculty_engagement_plan?: string | null
+          fw_causal_chain?: string | null
+          fw_cultural_freight?: string | null
+          fw_solutions_framing?: string | null
+          fw_thematic_bridge?: string | null
+          fw_values_lead?: string | null
+          id?: string
+          key_findings?: string[] | null
+          key_messages?: string[] | null
+          llm_response_raw?: Json | null
+          model_version?: string | null
+          newsworthiness?: string | null
+          nu_alignment_mapping?: string | null
+          pillar_rationale?: string | null
+          policy_implications?: string[] | null
+          prompt_version?: string | null
+          research_summary?: string | null
+          timing_recommendations?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_analyses_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_channels: {
+        Row: {
+          audience_segment: string
+          call_to_action: string | null
+          campaign_id: string
+          channel: string
+          char_limit: number | null
+          created_at: string | null
+          hashtags: string[] | null
+          id: string
+          key_message_ids: number[] | null
+          media_suggestion: string | null
+          mentions: string[] | null
+          narrative_angle: string | null
+          phase: string
+          publish_order: number | null
+          published_post_id: string | null
+          scheduled_date: string | null
+          status: string
+          suggested_content: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          audience_segment: string
+          call_to_action?: string | null
+          campaign_id: string
+          channel: string
+          char_limit?: number | null
+          created_at?: string | null
+          hashtags?: string[] | null
+          id?: string
+          key_message_ids?: number[] | null
+          media_suggestion?: string | null
+          mentions?: string[] | null
+          narrative_angle?: string | null
+          phase?: string
+          publish_order?: number | null
+          published_post_id?: string | null
+          scheduled_date?: string | null
+          status?: string
+          suggested_content?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          audience_segment?: string
+          call_to_action?: string | null
+          campaign_id?: string
+          channel?: string
+          char_limit?: number | null
+          created_at?: string | null
+          hashtags?: string[] | null
+          id?: string
+          key_message_ids?: number[] | null
+          media_suggestion?: string | null
+          mentions?: string[] | null
+          narrative_angle?: string | null
+          phase?: string
+          publish_order?: number | null
+          published_post_id?: string | null
+          scheduled_date?: string | null
+          status?: string
+          suggested_content?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_channels_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_channels_published_post_id_fkey"
+            columns: ["published_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_documents: {
+        Row: {
+          campaign_id: string
+          content_text: string | null
+          created_at: string | null
+          document_role: string
+          file_name: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_included: boolean
+          sort_order: number
+          source: string
+          title: string
+          updated_at: string | null
+          word_count: number | null
+        }
+        Insert: {
+          campaign_id: string
+          content_text?: string | null
+          created_at?: string | null
+          document_role: string
+          file_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_included?: boolean
+          sort_order?: number
+          source?: string
+          title: string
+          updated_at?: string | null
+          word_count?: number | null
+        }
+        Update: {
+          campaign_id?: string
+          content_text?: string | null
+          created_at?: string | null
+          document_role?: string
+          file_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_included?: boolean
+          sort_order?: number
+          source?: string
+          title?: string
+          updated_at?: string | null
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_documents_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          created_by: string | null
+          embargo_until: string | null
+          id: string
+          nu_alignment_tags: string[] | null
+          pillar_primary: string | null
+          pillar_secondary: string | null
+          publication_date: string | null
+          research_authors: string[] | null
+          research_doi: string | null
+          research_url: string | null
+          status: string
+          target_audiences: string[]
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          created_by?: string | null
+          embargo_until?: string | null
+          id?: string
+          nu_alignment_tags?: string[] | null
+          pillar_primary?: string | null
+          pillar_secondary?: string | null
+          publication_date?: string | null
+          research_authors?: string[] | null
+          research_doi?: string | null
+          research_url?: string | null
+          status?: string
+          target_audiences?: string[]
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          embargo_until?: string | null
+          id?: string
+          nu_alignment_tags?: string[] | null
+          pillar_primary?: string | null
+          pillar_secondary?: string | null
+          publication_date?: string | null
+          research_authors?: string[] | null
+          research_doi?: string | null
+          research_url?: string | null
+          status?: string
+          target_audiences?: string[]
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_settings: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_settings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           client_name: string
@@ -154,7 +486,20 @@ export type Database = {
           analyzed_at: string
           audience_fit: string | null
           content_type: string | null
+          fw_causal_chain_eval: string | null
+          fw_causal_chain_score: number | null
+          fw_cultural_freight_eval: string | null
+          fw_cultural_freight_score: number | null
+          fw_episodic_thematic_eval: string | null
+          fw_episodic_thematic_score: number | null
+          fw_overall_score: number | null
+          fw_rewrite_rec: string | null
+          fw_solutions_framing_eval: string | null
+          fw_solutions_framing_score: number | null
+          fw_values_lead_eval: string | null
+          fw_values_lead_score: number | null
           id: string
+          key_topics: string[] | null
           llm_response_raw: Json | null
           model_version: string | null
           nu_alignment_tags: string[] | null
@@ -176,28 +521,28 @@ export type Database = {
           sentiment_label: string | null
           sentiment_rationale: string | null
           sentiment_score: number | null
-          tier_rationale: string | null
-          key_topics: string[] | null
           summary: string | null
-          fw_values_lead_score: number | null
-          fw_values_lead_eval: string | null
-          fw_causal_chain_score: number | null
-          fw_causal_chain_eval: string | null
-          fw_cultural_freight_score: number | null
-          fw_cultural_freight_eval: string | null
-          fw_episodic_thematic_score: number | null
-          fw_episodic_thematic_eval: string | null
-          fw_solutions_framing_score: number | null
-          fw_solutions_framing_eval: string | null
-          fw_overall_score: number | null
-          fw_rewrite_rec: string | null
+          tier_rationale: string | null
         }
         Insert: {
           analysis_run_id?: string | null
           analyzed_at?: string
           audience_fit?: string | null
           content_type?: string | null
+          fw_causal_chain_eval?: string | null
+          fw_causal_chain_score?: number | null
+          fw_cultural_freight_eval?: string | null
+          fw_cultural_freight_score?: number | null
+          fw_episodic_thematic_eval?: string | null
+          fw_episodic_thematic_score?: number | null
+          fw_overall_score?: number | null
+          fw_rewrite_rec?: string | null
+          fw_solutions_framing_eval?: string | null
+          fw_solutions_framing_score?: number | null
+          fw_values_lead_eval?: string | null
+          fw_values_lead_score?: number | null
           id?: string
+          key_topics?: string[] | null
           llm_response_raw?: Json | null
           model_version?: string | null
           nu_alignment_tags?: string[] | null
@@ -219,28 +564,28 @@ export type Database = {
           sentiment_label?: string | null
           sentiment_rationale?: string | null
           sentiment_score?: number | null
-          tier_rationale?: string | null
-          key_topics?: string[] | null
           summary?: string | null
-          fw_values_lead_score?: number | null
-          fw_values_lead_eval?: string | null
-          fw_causal_chain_score?: number | null
-          fw_causal_chain_eval?: string | null
-          fw_cultural_freight_score?: number | null
-          fw_cultural_freight_eval?: string | null
-          fw_episodic_thematic_score?: number | null
-          fw_episodic_thematic_eval?: string | null
-          fw_solutions_framing_score?: number | null
-          fw_solutions_framing_eval?: string | null
-          fw_overall_score?: number | null
-          fw_rewrite_rec?: string | null
+          tier_rationale?: string | null
         }
         Update: {
           analysis_run_id?: string | null
           analyzed_at?: string
           audience_fit?: string | null
           content_type?: string | null
+          fw_causal_chain_eval?: string | null
+          fw_causal_chain_score?: number | null
+          fw_cultural_freight_eval?: string | null
+          fw_cultural_freight_score?: number | null
+          fw_episodic_thematic_eval?: string | null
+          fw_episodic_thematic_score?: number | null
+          fw_overall_score?: number | null
+          fw_rewrite_rec?: string | null
+          fw_solutions_framing_eval?: string | null
+          fw_solutions_framing_score?: number | null
+          fw_values_lead_eval?: string | null
+          fw_values_lead_score?: number | null
           id?: string
+          key_topics?: string[] | null
           llm_response_raw?: Json | null
           model_version?: string | null
           nu_alignment_tags?: string[] | null
@@ -262,21 +607,8 @@ export type Database = {
           sentiment_label?: string | null
           sentiment_rationale?: string | null
           sentiment_score?: number | null
-          tier_rationale?: string | null
-          key_topics?: string[] | null
           summary?: string | null
-          fw_values_lead_score?: number | null
-          fw_values_lead_eval?: string | null
-          fw_causal_chain_score?: number | null
-          fw_causal_chain_eval?: string | null
-          fw_cultural_freight_score?: number | null
-          fw_cultural_freight_eval?: string | null
-          fw_episodic_thematic_score?: number | null
-          fw_episodic_thematic_eval?: string | null
-          fw_solutions_framing_score?: number | null
-          fw_solutions_framing_eval?: string | null
-          fw_overall_score?: number | null
-          fw_rewrite_rec?: string | null
+          tier_rationale?: string | null
         }
         Relationships: [
           {
@@ -289,7 +621,7 @@ export type Database = {
           {
             foreignKeyName: "post_analyses_post_id_fkey"
             columns: ["post_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "posts"
             referencedColumns: ["id"]
           },
@@ -458,41 +790,6 @@ export type Database = {
             columns: ["collection_run_id"]
             isOneToOne: false
             referencedRelation: "collection_runs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_settings: {
-        Row: {
-          id: string
-          client_id: string
-          setting_key: string
-          setting_value: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          client_id: string
-          setting_key: string
-          setting_value: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          client_id?: string
-          setting_key?: string
-          setting_value?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_settings_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
