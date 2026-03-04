@@ -730,11 +730,24 @@ export default function CampaignDetailPage() {
       const res = await fetch(`/api/campaigns/${campaignId}/generate-prompt`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: data?.campaign.client_id }),
       });
 
-      if (!res.body) throw new Error("No response stream");
+      // Early validation errors come back as JSON (not SSE)
+      if (!res.ok) {
+        const err = await res.json();
+        toast({ title: "Error", description: err.error || "Failed to generate prompt" });
+        setGeneratingPrompt(false);
+        return;
+      }
 
-      const reader = res.body.getReader();
+      const reader = res.body?.getReader();
+      if (!reader) {
+        toast({ title: "Error", description: "No response stream" });
+        setGeneratingPrompt(false);
+        return;
+      }
+
       const decoder = new TextDecoder();
       let buffer = "";
 
