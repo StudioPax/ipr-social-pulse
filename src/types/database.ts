@@ -306,6 +306,7 @@ export type Database = {
       campaigns: {
         Row: {
           campaign_type: string
+          channels_used: string[]
           client_id: string
           created_at: string | null
           created_by: string | null
@@ -327,6 +328,7 @@ export type Database = {
         }
         Insert: {
           campaign_type?: string
+          channels_used?: string[]
           client_id: string
           created_at?: string | null
           created_by?: string | null
@@ -348,6 +350,7 @@ export type Database = {
         }
         Update: {
           campaign_type?: string
+          channels_used?: string[]
           client_id?: string
           created_at?: string | null
           created_by?: string | null
