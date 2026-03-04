@@ -60,20 +60,7 @@ export async function POST(
 
   const campaign = campaignRes.data;
 
-  if (!campaign.campaign_type) {
-    return NextResponse.json(
-      { error: "Campaign type is required. Set it in campaign settings." },
-      { status: 400 }
-    );
-  }
-
-  if (!campaign.duration_weeks) {
-    return NextResponse.json(
-      { error: "Duration (weeks) is required. Set it in campaign settings." },
-      { status: 400 }
-    );
-  }
-
+  // Only hard-fail if no documents at all
   const docs = docsRes.data || [];
   if (docs.length === 0) {
     return NextResponse.json(
@@ -84,7 +71,11 @@ export async function POST(
 
   const analysis = analysisRes.data;
 
-  // ── SSE stream (happy path) ──────────────────────────────────────────
+  // Smart defaults for missing optional fields (campaigns created before import pipeline)
+  const campaignType = campaign.campaign_type || "new_research";
+  const durationWeeks = campaign.duration_weeks || 4;
+
+  // ── SSE stream ───────────────────────────────────────────────────────
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -96,7 +87,14 @@ export async function POST(
 
       try {
         send("info", `Generating prompt for "${campaign.title}"`);
-        send("info", `Type: ${campaign.campaign_type}, Duration: ${campaign.duration_weeks} weeks`);
+
+        if (!campaign.campaign_type) {
+          send("warn", `Campaign type not set — defaulting to "new_research"`);
+        }
+        if (!campaign.duration_weeks) {
+          send("warn", `Duration not set — defaulting to 4 weeks`);
+        }
+        send("info", `Type: ${campaignType}, Duration: ${durationWeeks} weeks`);
 
         const targetAudiences = (campaign.target_audiences as string[]) || [];
         const channels = (campaign.channels_used as string[]) || [];
@@ -162,8 +160,8 @@ export async function POST(
 
         const prompt = buildImportPrompt({
           title: campaign.title,
-          campaign_type: campaign.campaign_type,
-          duration_weeks: campaign.duration_weeks!,
+          campaign_type: campaignType,
+          duration_weeks: durationWeeks,
           channels,
           target_audiences: targetAudiences,
           research_authors: (campaign.research_authors as string[]) || [],

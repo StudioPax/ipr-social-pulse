@@ -735,14 +735,18 @@ export default function CampaignDetailPage() {
 
       // Early validation errors come back as JSON (not SSE)
       if (!res.ok) {
-        const err = await res.json();
-        toast({ title: "Error", description: err.error || "Failed to generate prompt" });
+        const err = await res.json().catch(() => ({ error: "Failed to generate prompt" }));
+        const errorMsg = err.error || "Failed to generate prompt";
+        // Show in both toast AND the log bar so user sees it
+        setPromptLog([{ level: "error", message: errorMsg, timestamp: new Date().toISOString() }]);
+        toast({ title: "Error", description: errorMsg });
         setGeneratingPrompt(false);
         return;
       }
 
       const reader = res.body?.getReader();
       if (!reader) {
+        setPromptLog([{ level: "error", message: "No response stream", timestamp: new Date().toISOString() }]);
         toast({ title: "Error", description: "No response stream" });
         setGeneratingPrompt(false);
         return;
