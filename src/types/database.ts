@@ -164,6 +164,7 @@ export type Database = {
           pillar_rationale: string | null
           pillar_secondary: string | null
           policy_relevance: number | null
+          policy_relevance_rationale: string | null
           post_id: string
           prompt_version: string | null
           recommended_action: string | null
@@ -175,6 +176,7 @@ export type Database = {
           sentiment_label: string | null
           sentiment_rationale: string | null
           sentiment_score: number | null
+          tier_rationale: string | null
           key_topics: string[] | null
           summary: string | null
         }
@@ -193,6 +195,7 @@ export type Database = {
           pillar_rationale?: string | null
           pillar_secondary?: string | null
           policy_relevance?: number | null
+          policy_relevance_rationale?: string | null
           post_id: string
           prompt_version?: string | null
           recommended_action?: string | null
@@ -204,6 +207,7 @@ export type Database = {
           sentiment_label?: string | null
           sentiment_rationale?: string | null
           sentiment_score?: number | null
+          tier_rationale?: string | null
           key_topics?: string[] | null
           summary?: string | null
         }
@@ -222,6 +226,7 @@ export type Database = {
           pillar_rationale?: string | null
           pillar_secondary?: string | null
           policy_relevance?: number | null
+          policy_relevance_rationale?: string | null
           post_id?: string
           prompt_version?: string | null
           recommended_action?: string | null
@@ -233,6 +238,7 @@ export type Database = {
           sentiment_label?: string | null
           sentiment_rationale?: string | null
           sentiment_score?: number | null
+          tier_rationale?: string | null
           key_topics?: string[] | null
           summary?: string | null
         }

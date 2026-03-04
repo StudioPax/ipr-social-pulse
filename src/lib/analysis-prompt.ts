@@ -3,7 +3,7 @@
 
 import { PILLARS, PERFORMANCE_TIERS, RECOMMENDED_ACTIONS } from "@/lib/tokens";
 
-export const ANALYSIS_PROMPT_VERSION = "v1.2";
+export const ANALYSIS_PROMPT_VERSION = "v1.3";
 
 /** Shape of a post sent to the LLM for analysis */
 export interface PostForAnalysis {
@@ -37,6 +37,8 @@ export interface PostAnalysisResult {
   research_authors: string[];
   research_confidence: number;
   sentiment_rationale: string;
+  policy_relevance_rationale: string;
+  tier_rationale: string;
   key_topics: string[];
   summary: string;
 }
@@ -131,6 +133,8 @@ For each post, return a JSON object with these exact fields:
   "research_authors": ["detected author names"] or [],
   "research_confidence": 0.0-1.0,
   "sentiment_rationale": "1-2 sentence explanation of sentiment classification",
+  "policy_relevance_rationale": "1-2 sentence explanation of the policy relevance score — what makes this post more or less relevant to IPR's policy mission",
+  "tier_rationale": "1-2 sentence explanation of the tier assignment — how engagement level and policy relevance combined to determine this tier, and what it means for IPR's strategy",
   "key_topics": ["topic1", "topic2", "topic3"],
   "summary": "One-sentence summary of the post's core message"
 }
@@ -208,6 +212,8 @@ export function parseAnalysisResponse(raw: string): PostAnalysisResult[] {
       : [],
     research_confidence: Number(r.research_confidence) || 0,
     sentiment_rationale: String(r.sentiment_rationale || ""),
+    policy_relevance_rationale: String(r.policy_relevance_rationale || ""),
+    tier_rationale: String(r.tier_rationale || ""),
     key_topics: Array.isArray(r.key_topics)
       ? r.key_topics.map(String)
       : [],

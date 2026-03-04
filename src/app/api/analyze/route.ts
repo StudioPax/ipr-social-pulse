@@ -205,6 +205,8 @@ export async function POST(request: NextRequest) {
                   research_authors: result.research_authors,
                   research_confidence: result.research_confidence,
                   sentiment_rationale: result.sentiment_rationale,
+                  policy_relevance_rationale: result.policy_relevance_rationale,
+                  tier_rationale: result.tier_rationale,
                   key_topics: result.key_topics,
                   summary: result.summary,
                   llm_response_raw: analysisResult.raw as Database["public"]["Tables"]["post_analyses"]["Row"]["llm_response_raw"],

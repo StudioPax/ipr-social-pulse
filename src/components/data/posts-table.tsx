@@ -75,6 +75,7 @@ export interface PostAnalysis {
   performance_tier: string | null;
   recommended_action: string | null;
   policy_relevance: number | null;
+  policy_relevance_rationale: string | null;
   content_type: string | null;
   audience_fit: string | null;
   nu_alignment_tags: string[] | null;
@@ -83,6 +84,7 @@ export interface PostAnalysis {
   research_authors: string[] | null;
   key_topics: string[] | null;
   summary: string | null;
+  tier_rationale: string | null;
 }
 
 const SENTIMENT_COLORS: Record<string, string> = {
@@ -438,6 +440,18 @@ function ExpandedRowDetail({
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sentiment Rationale</p>
             <p className="text-sm text-muted-foreground mt-0.5 italic">{analysis.sentiment_rationale}</p>
+          </div>
+        )}
+        {analysis.policy_relevance_rationale && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Policy Relevance</p>
+            <p className="text-sm text-muted-foreground mt-0.5 italic">{analysis.policy_relevance_rationale}</p>
+          </div>
+        )}
+        {analysis.tier_rationale && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tier Assessment</p>
+            <p className="text-sm text-muted-foreground mt-0.5 italic">{analysis.tier_rationale}</p>
           </div>
         )}
       </div>
