@@ -85,6 +85,18 @@ export interface PostAnalysis {
   key_topics: string[] | null;
   summary: string | null;
   tier_rationale: string | null;
+  fw_values_lead_score: number | null;
+  fw_values_lead_eval: string | null;
+  fw_causal_chain_score: number | null;
+  fw_causal_chain_eval: string | null;
+  fw_cultural_freight_score: number | null;
+  fw_cultural_freight_eval: string | null;
+  fw_episodic_thematic_score: number | null;
+  fw_episodic_thematic_eval: string | null;
+  fw_solutions_framing_score: number | null;
+  fw_solutions_framing_eval: string | null;
+  fw_overall_score: number | null;
+  fw_rewrite_rec: string | null;
 }
 
 const SENTIMENT_COLORS: Record<string, string> = {
@@ -346,19 +358,33 @@ function ExpandedRowDetail({
         </div>
       </div>
 
-      {/* Key Topics */}
-      {analysis.key_topics && analysis.key_topics.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Key Topics</p>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {analysis.key_topics.map((topic, i) => (
-              <Badge key={i} variant="secondary" className="text-[10px]">
-                {topic}
-              </Badge>
-            ))}
+      {/* Key Topics + Hashtags */}
+      <div className="flex flex-wrap gap-6">
+        {analysis.key_topics && analysis.key_topics.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Key Topics</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {analysis.key_topics.map((topic, i) => (
+                <Badge key={i} variant="secondary" className="text-[10px]">
+                  {topic}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+        {post.hashtags && post.hashtags.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Hashtags</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {post.hashtags.map((tag, i) => (
+                <Badge key={i} variant="outline" className="text-[10px] font-mono">
+                  {tag.startsWith("#") ? tag : `#${tag}`}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Analysis Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -455,6 +481,79 @@ function ExpandedRowDetail({
           </div>
         )}
       </div>
+
+      {/* FrameWorks Strategic Communications Analysis */}
+      {analysis.fw_overall_score != null && (
+        <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              FrameWorks Strategic Communications
+            </p>
+            <Badge
+              variant="outline"
+              className={`font-mono text-xs ${
+                analysis.fw_overall_score >= 20
+                  ? "border-emerald-300 text-emerald-700"
+                  : analysis.fw_overall_score >= 15
+                    ? "border-amber-300 text-amber-700"
+                    : "border-red-300 text-red-700"
+              }`}
+            >
+              {analysis.fw_overall_score}/25
+            </Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            {[
+              { label: "Values Lead", score: analysis.fw_values_lead_score, eval: analysis.fw_values_lead_eval },
+              { label: "Causal Chain", score: analysis.fw_causal_chain_score, eval: analysis.fw_causal_chain_eval },
+              { label: "Cultural Freight", score: analysis.fw_cultural_freight_score, eval: analysis.fw_cultural_freight_eval },
+              { label: "Episodic vs. Thematic", score: analysis.fw_episodic_thematic_score, eval: analysis.fw_episodic_thematic_eval },
+              { label: "Solutions Framing", score: analysis.fw_solutions_framing_score, eval: analysis.fw_solutions_framing_eval },
+            ].map((dim) => (
+              <div key={dim.label}>
+                <div className="flex items-center justify-between mb-0.5">
+                  <p className="text-[10px] font-medium text-muted-foreground">{dim.label}</p>
+                  <span className={`text-xs font-mono font-bold ${
+                    (dim.score || 0) >= 4
+                      ? "text-emerald-600"
+                      : (dim.score || 0) >= 3
+                        ? "text-amber-600"
+                        : "text-red-600"
+                  }`}>
+                    {dim.score}/5
+                  </span>
+                </div>
+                {/* Score bar */}
+                <div className="flex gap-0.5 mb-1">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <div
+                      key={n}
+                      className={`h-1 flex-1 rounded-full ${
+                        n <= (dim.score || 0)
+                          ? (dim.score || 0) >= 4
+                            ? "bg-emerald-400"
+                            : (dim.score || 0) >= 3
+                              ? "bg-amber-400"
+                              : "bg-red-400"
+                          : "bg-muted"
+                      }`}
+                    />
+                  ))}
+                </div>
+                {dim.eval && (
+                  <p className="text-[11px] text-muted-foreground leading-snug">{dim.eval}</p>
+                )}
+              </div>
+            ))}
+          </div>
+          {analysis.fw_rewrite_rec && (
+            <div className="pt-2 border-t border-border/50">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Rewrite Recommendation</p>
+              <p className="text-sm mt-0.5 italic text-muted-foreground">{analysis.fw_rewrite_rec}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Research Linkage */}
       {analysis.research_title && (
@@ -576,9 +675,17 @@ export function PostsTable({
               e.stopPropagation();
               row.toggleExpanded();
             }}
-            className="text-muted-foreground hover:text-foreground text-sm px-1"
+            className="flex items-center justify-center w-6 h-6 rounded hover:bg-muted text-foreground/70 hover:text-foreground transition-colors"
           >
-            {row.getIsExpanded() ? "▾" : "▸"}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              className={`transition-transform duration-150 ${row.getIsExpanded() ? "rotate-90" : ""}`}
+            >
+              <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
         ),
       },
