@@ -4,7 +4,7 @@
 
 **Client:** Northwestern IPR
 **Built by:** Studio Pax
-**Status:** Phase 1 (MVP) — Active Development
+**Status:** Phase 2.5 (Dashboard Enhancements) — Complete | Phase 3 — Next
 **Last updated:** 2026-03-03
 
 ---
@@ -71,7 +71,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<set in Vercel>
 
 ---
 
-## Database Schema (7 Tables)
+## Database Schema (8 Tables)
 
 All tables have RLS enabled with anon-key policies for SELECT, INSERT, and UPDATE.
 
@@ -90,6 +90,14 @@ social_accounts
 ├── handle (text)
 ├── is_default (bool)
 ├── created_at / updated_at
+
+client_settings
+├── id (uuid, PK)
+├── client_id → clients.id
+├── setting_key (text)  — anthropic_api_key, gemini_api_key
+├── setting_value (text)
+├── created_at / updated_at
+├── UNIQUE(client_id, setting_key)
 
 collection_runs
 ├── id (uuid, PK)
@@ -123,8 +131,8 @@ posts
 analysis_runs
 ├── id (uuid, PK)
 ├── client_id → clients.id
-├── run_type (text) — pillar_tag, sentiment, full
-├── status (text)
+├── run_type (text) — new_only, new_and_stale, full
+├── status (text) — pending, running, completed, failed
 ├── model_version, prompt_version (text)
 ├── posts_queued, posts_analyzed, posts_skipped (int)
 ├── error_message (text)
@@ -132,19 +140,24 @@ analysis_runs
 
 post_analyses
 ├── id (uuid, PK)
-├── post_id → posts.id
+├── post_id → posts.id (UNIQUE)
 ├── analysis_run_id → analysis_runs.id
 ├── pillar_primary, pillar_secondary (text)
 ├── pillar_confidence (numeric)
 ├── pillar_rationale (text)
 ├── sentiment_label (text), sentiment_score, sentiment_confidence (numeric)
+├── sentiment_rationale (text)
 ├── performance_tier (text) — T1–T4
 ├── policy_relevance (numeric)
+├── policy_relevance_rationale (text)
+├── tier_rationale (text)
 ├── audience_fit, content_type (text)
 ├── nu_alignment_tags (text[])
 ├── recommended_action (text)
 ├── research_title, research_url (text)
 ├── research_authors (text[]), research_confidence (numeric)
+├── key_topics (text[])
+├── summary (text)
 ├── llm_response_raw (jsonb)
 ├── model_version, prompt_version (text)
 ├── analyzed_at (timestamptz)
@@ -177,13 +190,16 @@ src/
 │   ├── layout.tsx              # Root layout: TopBar + SideNav + main
 │   ├── page.tsx                # Home: logo + 4 feature cards
 │   ├── globals.css             # Tailwind + IPR design tokens
-│   ├── dashboard/page.tsx      # KPI cards + 3 tabbed Recharts views
+│   ├── dashboard/page.tsx      # KPI cards + date range filter + 3 tabbed Recharts views
 │   ├── collect/page.tsx        # Collection UI + log window + date presets
-│   ├── analyze/page.tsx        # Posts data table with stats
-│   ├── outreach/page.tsx       # Placeholder (Phase 2)
-│   ├── settings/page.tsx       # Client profile + social accounts
+│   ├── analyze/page.tsx        # Posts table + stats + AI analysis panel
+│   ├── outreach/page.tsx       # Placeholder (Phase 3)
+│   ├── settings/page.tsx       # Client profile + social accounts + AI model keys
 │   └── api/
-│       └── collect/route.ts    # POST: run collection, GET: run history
+│       ├── collect/route.ts    # POST: run collection, GET: run history
+│       ├── analyze/route.ts    # POST: run AI analysis (SSE stream), GET: prescan/progress/history
+│       └── settings/
+│           └── keys/route.ts   # GET: key status, POST: save key, PUT: test connection
 ├── components/
 │   ├── icons/
 │   │   └── meridian-logo.tsx   # SVG logo (mark + full variants)
@@ -191,7 +207,9 @@ src/
 │   │   ├── top-bar.tsx         # App header with logo
 │   │   └── side-nav.tsx        # Sidebar navigation
 │   ├── data/
-│   │   └── posts-table.tsx     # TanStack Table for posts
+│   │   ├── posts-table.tsx     # TanStack Table: sortable, filterable, expandable rows
+│   │   ├── analysis-panel.tsx  # AI analysis UI: model selector, pre-scan, run buttons, log
+│   │   └── date-range-filter.tsx # Date range filter: presets + custom range
 │   └── ui/                     # shadcn/ui components (13)
 │       ├── badge.tsx
 │       ├── button.tsx
@@ -208,49 +226,67 @@ src/
 ├── hooks/
 │   └── use-toast.ts            # Toast notification hook
 ├── lib/
+│   ├── analysis-prompt.ts      # LLM prompt template, JSON schema, version (v1.4)
 │   ├── bluesky.ts              # Bluesky AT Protocol client
 │   ├── charts.ts               # Recharts theme config
+│   ├── claude.ts               # Claude API client (claude-sonnet-4)
+│   ├── gemini.ts               # Gemini API client (gemini-3-pro-preview)
 │   ├── supabase.ts             # Supabase client init
-│   ├── tokens.ts               # Design token constants
+│   ├── tokens.ts               # Design token constants (pillars, tiers, actions, date presets)
 │   └── utils.ts                # cn() utility
 └── types/
-    └── database.ts             # Supabase generated types
+    └── database.ts             # Supabase generated types (8 tables)
 ```
 
 ---
 
 ## Feature Status
 
-### Phase 1 — MVP (Current)
+### Phase 1 — MVP (Complete)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **App Shell** | Done | TopBar, SideNav, responsive layout |
 | **Meridian Logo** | Done | SVG component, mark + full variants |
 | **Design System** | Done | IPR tokens, Northwestern purple (#4E2A84), DM Sans |
-| **Supabase Schema** | Done | 7 tables, RLS policies, typed client |
-| **Settings Page** | Done | Client profile, 5 social accounts |
+| **Supabase Schema** | Done | 8 tables, RLS policies, typed client |
+| **Settings Page** | Done | Client profile, social accounts, AI model API keys |
 | **Collect Page** | Done | Platform selector, date presets, log window |
 | **Bluesky Connector** | Done | Feed + search modes, post normalization |
 | **Collection API** | Done | POST /api/collect, dedup on upsert |
 | **Dashboard** | Done | KPI cards, 3 tabs (Leadership, NU Alignment, Opportunity) |
-| **Analyze Page** | Done | Posts table with sort, filter, pagination |
-| **PostsTable Component** | Done | Reusable TanStack Table, platform/pillar badges |
 | **Vercel Deployment** | Done | Auto-deploy from `main` branch |
 
-### Phase 2 — AI Analysis (Next)
+### Phase 2 — AI Analysis (Complete)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Claude AI Integration | Not started | Pillar tagging, sentiment, tiering via Claude API |
-| Analysis Run UI | Not started | Trigger analysis from Analyze page, progress tracking |
-| Pillar Auto-Tagging | Not started | Claude classifies posts into 5 pillars with confidence |
-| Sentiment Analysis | Not started | Positive/negative/neutral + score |
-| Performance Tiering | Not started | T1–T4 tier assignment based on engagement + relevance |
-| NU Alignment Scoring | Not started | How well content aligns with IPR messaging |
-| Dashboard — Live Data | Partial | Charts wired to DB; AI-derived fields still empty |
+| **Claude API Integration** | Done | `claude-sonnet-4` via `@anthropic-ai/sdk` |
+| **Gemini API Integration** | Done | `gemini-3-pro-preview` via `@google/generative-ai` |
+| **Analysis Prompt** | Done | v1.4 — pillar, sentiment, tier, topics, summary, rationales, policy relevance rationale, tier rationale |
+| **Analysis API** | Done | SSE streaming with batched processing, prescan, progress, history |
+| **Analysis Panel UI** | Done | Model selector, pre-scan counts, run buttons, real-time log, progress |
+| **Pillar Auto-Tagging** | Done | Primary + secondary pillar with confidence + rationale |
+| **Sentiment Analysis** | Done | Label + score + confidence + rationale (intent-based, not topic-based) |
+| **Performance Tiering** | Done | T1–T4 based on engagement + policy relevance |
+| **Recommended Actions** | Done | amplify, template, promote_niche, diagnose, archive |
+| **Settings — API Keys** | Done | Masked input, save, test connection per model |
+| **PostsTable — Analysis Columns** | Done | Sentiment, Tier, Action columns with sorting + tooltips |
+| **PostsTable — Filter Bar** | Done | Collapsible chip filters: platform, pillar, sentiment, tier, action, content type, audience |
+| **PostsTable — Expandable Rows** | Done | Full analysis detail: summary, rationales, scores, research, NU alignment, topics, hashtags |
+| **Dashboard — Live Data** | Partial | Charts wired to DB; need to update charts to use post_analyses data |
 
-### Phase 3 — Multi-Platform + Outreach
+### Phase 2.5 — Dashboard Enhancements (Complete)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Dashboard Date Range Filter** | Done | Presets (last month/3mo/6mo/year) + custom range, server-side Supabase filtering |
+| **Posts Over Time — Full Range Fill** | Done | Chart spans full date range with zero-fill for days without posts |
+| **Posts Over Time — Snippet Tooltips** | Done | Hover shows date, post count, and truncated content snippets |
+| **PostsTable — Hashtag Display** | Done | Hashtags shown as outlined monospace badges in expanded row detail |
+| **PostsTable — Expand Arrow** | Done | SVG chevron with hover state + rotation animation (replaces unicode arrows) |
+
+### Phase 3 — Multi-Platform + Outreach (Next)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -259,6 +295,7 @@ src/
 | Facebook Connector | Not started | Requires Graph API token |
 | Instagram Connector | Not started | Requires Graph API token |
 | Outreach Module | Not started | Amplifier tracking, influencer tiering, action flags |
+| Dashboard AI Views | Not started | Update charts to source from post_analyses |
 | Google Sheets Export | Not started | One-click export of dashboard data |
 | Email Digest | Not started | Scheduled summary reports |
 
@@ -319,9 +356,11 @@ npm start        # Start production server
 
 | Issue | Root Cause | Fix |
 |-------|-----------|-----|
-| Collect button does nothing | RLS enabled with zero policies | Added SELECT/INSERT/UPDATE policies for anon on all 7 tables |
+| Collect button does nothing | RLS enabled with zero policies | Added SELECT/INSERT/UPDATE policies for anon on all 8 tables |
 | Bluesky API 400 "invalid handle" | Seeded handle was `@ipr.northwestern.edu` | Updated to `ipratnu.bsky.social` |
 | `posts_content_format_check` violation | Constraint only allowed `short/medium/long/thread` | Broadened to include `image, video, link, carousel, poll, article, repost` |
+| Sentiment misclassification | LLM classified by topic negativity, not communicative intent | Updated prompt v1.1 with explicit intent-based sentiment rules + examples |
+| Set iteration build error | TypeScript `downlevelIteration` not enabled | Replaced `[...new Set()]` with `Array.from()` |
 | ESLint unused variable | `count` destructured but unused in route.ts | Removed from destructuring |
 | ESLint `actionTypes` warning | shadcn/ui generated code | Added eslint-disable comment |
 
@@ -329,11 +368,9 @@ npm start        # Start production server
 
 ## Next Steps (Recommended Order)
 
-1. **Verify Bluesky E2E** — Confirm collection works end-to-end after all 3 fixes
-2. **Claude API Integration** — Add `ANTHROPIC_API_KEY` env var, create `/api/analyze` endpoint
-3. **Analysis Prompt Engineering** — Design prompt for pillar tagging + sentiment + tiering
-4. **Analysis Run UI** — "Analyze" button on Analyze page, progress indicator
-5. **Dashboard AI Views** — Wire pillar distribution, sentiment charts to real `post_analyses` data
-6. **Twitter/X Connector** — Next platform (highest value for IPR)
-7. **Outreach Module** — Build the amplifier/influencer tracking page
-8. **Google Sheets Export** — One-click export for IPR leadership reports
+1. **Dashboard AI Views** — Update charts to source from `post_analyses` (pillar distribution, sentiment breakdown, tier mix)
+2. **Twitter/X Connector** — Next platform (highest value for IPR), requires v2 API key
+3. **Outreach Module** — Build the amplifier/influencer tracking page (Module 4 in app spec)
+4. **LinkedIn / Facebook / Instagram Connectors** — OAuth-based platform integrations
+5. **Google Sheets Export** — One-click export of dashboard data for IPR leadership
+6. **Email Digest** — Scheduled summary reports

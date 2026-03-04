@@ -69,7 +69,7 @@ export default function AnalyzePage() {
       supabase
         .from("post_analyses")
         .select(
-          "post_id, pillar_primary, pillar_secondary, pillar_confidence, pillar_rationale, sentiment_label, sentiment_score, sentiment_confidence, sentiment_rationale, performance_tier, recommended_action, policy_relevance, policy_relevance_rationale, content_type, audience_fit, nu_alignment_tags, research_title, research_url, research_authors, key_topics, summary, tier_rationale"
+          "post_id, pillar_primary, pillar_secondary, pillar_confidence, pillar_rationale, sentiment_label, sentiment_score, sentiment_confidence, sentiment_rationale, performance_tier, recommended_action, policy_relevance, policy_relevance_rationale, content_type, audience_fit, nu_alignment_tags, research_title, research_url, research_authors, key_topics, summary, tier_rationale, fw_values_lead_score, fw_values_lead_eval, fw_causal_chain_score, fw_causal_chain_eval, fw_cultural_freight_score, fw_cultural_freight_eval, fw_episodic_thematic_score, fw_episodic_thematic_eval, fw_solutions_framing_score, fw_solutions_framing_eval, fw_overall_score, fw_rewrite_rec"
         ),
     ]);
 

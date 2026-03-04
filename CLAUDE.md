@@ -42,13 +42,14 @@ Always read these before making architectural decisions or building new features
 
 ## Database
 
-7 tables in Supabase, all with RLS enabled and anon-key policies:
+8 tables in Supabase, all with RLS enabled and anon-key policies:
 - `clients` — multi-tenant client profiles
 - `social_accounts` — platform connections per client
+- `client_settings` — per-client settings (API keys, preferences). UNIQUE on `(client_id, setting_key)`
 - `collection_runs` — collection job history
 - `posts` — collected social media posts (UNIQUE on `client_id, platform, post_id`)
 - `analysis_runs` — AI analysis job history
-- `post_analyses` — Claude AI analysis results per post
+- `post_analyses` — AI analysis results per post (UNIQUE on `post_id`)
 - `post_outreach` — amplifier/influencer tracking per post
 
 **Default client:** Northwestern IPR (`8734831a-16e0-4cbf-8335-7322855b07b1`)
@@ -75,9 +76,13 @@ Always read these before making architectural decisions or building new features
 ## Current Status
 
 See `README.md` for the full feature status table. In summary:
-- **Phase 1 (MVP) is largely complete:** app shell, Bluesky connector, collection UI with log window, dashboard with charts, analyze page with data table, settings page
-- **Phase 2 (AI Analysis) is next:** Claude API integration for pillar tagging, sentiment, tiering
-- **Phase 3 (Multi-Platform + Outreach)** is after that
+- **Phase 1 (MVP) — Complete:** app shell, Bluesky connector, collection UI with log window, dashboard with charts, analyze page with data table, settings page
+- **Phase 2 (AI Analysis) — Complete:** Claude + Gemini API integration, pillar tagging, sentiment, tiering, analysis panel with SSE streaming log, filter bar, expandable rows
+- **Phase 2.5 (Dashboard Enhancements) — Complete:** date range filter with presets + custom range, server-side Supabase date filtering, Posts Over Time chart with full-range fill + post snippet tooltips, hashtags in expanded row detail, improved expand arrows
+- **Phase 3 (Multi-Platform + Outreach)** is next
+
+### Terminology: "Save project status" / "Save status"
+When the user says "save project status" or "save status," update both `CLAUDE.md` (this file) and `README.md` to reflect the current state of the project — completed features, pending work, file structure changes, new DB fields, etc.
 
 ## Code Conventions
 

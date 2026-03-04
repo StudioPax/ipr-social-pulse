@@ -63,3 +63,14 @@ export const RECOMMENDED_ACTIONS = [
 ] as const;
 
 export type RecommendedAction = (typeof RECOMMENDED_ACTIONS)[number];
+
+/** Dashboard date range presets */
+export const DATE_RANGE_PRESETS = [
+  { value: "last_month", label: "Last month" },
+  { value: "last_3_months", label: "Last 3 months" },
+  { value: "last_6_months", label: "Last 6 months" },
+  { value: "last_year", label: "Last year" },
+  { value: "custom", label: "Custom range" },
+] as const;
+
+export type DateRangePreset = (typeof DATE_RANGE_PRESETS)[number]["value"];

@@ -179,6 +179,18 @@ export type Database = {
           tier_rationale: string | null
           key_topics: string[] | null
           summary: string | null
+          fw_values_lead_score: number | null
+          fw_values_lead_eval: string | null
+          fw_causal_chain_score: number | null
+          fw_causal_chain_eval: string | null
+          fw_cultural_freight_score: number | null
+          fw_cultural_freight_eval: string | null
+          fw_episodic_thematic_score: number | null
+          fw_episodic_thematic_eval: string | null
+          fw_solutions_framing_score: number | null
+          fw_solutions_framing_eval: string | null
+          fw_overall_score: number | null
+          fw_rewrite_rec: string | null
         }
         Insert: {
           analysis_run_id?: string | null
@@ -210,6 +222,18 @@ export type Database = {
           tier_rationale?: string | null
           key_topics?: string[] | null
           summary?: string | null
+          fw_values_lead_score?: number | null
+          fw_values_lead_eval?: string | null
+          fw_causal_chain_score?: number | null
+          fw_causal_chain_eval?: string | null
+          fw_cultural_freight_score?: number | null
+          fw_cultural_freight_eval?: string | null
+          fw_episodic_thematic_score?: number | null
+          fw_episodic_thematic_eval?: string | null
+          fw_solutions_framing_score?: number | null
+          fw_solutions_framing_eval?: string | null
+          fw_overall_score?: number | null
+          fw_rewrite_rec?: string | null
         }
         Update: {
           analysis_run_id?: string | null
@@ -241,6 +265,18 @@ export type Database = {
           tier_rationale?: string | null
           key_topics?: string[] | null
           summary?: string | null
+          fw_values_lead_score?: number | null
+          fw_values_lead_eval?: string | null
+          fw_causal_chain_score?: number | null
+          fw_causal_chain_eval?: string | null
+          fw_cultural_freight_score?: number | null
+          fw_cultural_freight_eval?: string | null
+          fw_episodic_thematic_score?: number | null
+          fw_episodic_thematic_eval?: string | null
+          fw_solutions_framing_score?: number | null
+          fw_solutions_framing_eval?: string | null
+          fw_overall_score?: number | null
+          fw_rewrite_rec?: string | null
         }
         Relationships: [
           {

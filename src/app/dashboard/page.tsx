@@ -9,6 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  DateRangeFilter,
+  buildDateRangeValue,
+  type DateRangeValue,
+} from "@/components/data/date-range-filter";
+import {
   BarChart,
   Bar,
   XAxis,
@@ -41,8 +46,12 @@ interface PostRow {
 export default function DashboardPage() {
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() =>
+    buildDateRangeValue("last_3_months")
+  );
 
   const loadData = useCallback(async () => {
+    setLoading(true);
     const { data: client } = await supabase
       .from("clients")
       .select("id")
@@ -60,12 +69,14 @@ export default function DashboardPage() {
         "id, platform, content_text, published_at, likes, reposts, comments, engagement_total, content_format, pillar_tag"
       )
       .eq("client_id", client.id)
+      .gte("published_at", dateRange.startDate + "T00:00:00Z")
+      .lte("published_at", dateRange.endDate + "T23:59:59Z")
       .order("published_at", { ascending: false })
       .limit(1000);
 
     setPosts(data || []);
     setLoading(false);
-  }, []);
+  }, [dateRange.startDate, dateRange.endDate]);
 
   useEffect(() => {
     loadData();
@@ -100,17 +111,26 @@ export default function DashboardPage() {
     }, {} as Record<string, { likes: number; reposts: number; comments: number }>)
   ).map(([platform, data]) => ({ platform, ...data }));
 
-  // Posts over time (group by day)
-  const postsOverTime = Object.entries(
-    posts.reduce((acc, p) => {
-      if (!p.published_at) return acc;
+  // Posts over time (group by day, spanning full date range, with snippets for tooltip)
+  const postsOverTime = (() => {
+    const dayMap: Record<string, string[]> = {};
+    for (const p of posts) {
+      if (!p.published_at) continue;
       const day = p.published_at.split("T")[0];
-      acc[day] = (acc[day] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>)
-  )
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+      if (!dayMap[day]) dayMap[day] = [];
+      const snippet = (p.content_text || "No text").slice(0, 80);
+      dayMap[day].push(snippet + (snippet.length >= 80 ? "..." : ""));
+    }
+    const result: { date: string; count: number; snippets: string[] }[] = [];
+    const cursor = new Date(dateRange.startDate + "T00:00:00");
+    const end = new Date(dateRange.endDate + "T00:00:00");
+    while (cursor <= end) {
+      const key = cursor.toISOString().split("T")[0];
+      result.push({ date: key, count: dayMap[key]?.length || 0, snippets: dayMap[key] || [] });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return result;
+  })();
 
   // Content format distribution
   const formatData = Object.entries(
@@ -152,6 +172,11 @@ export default function DashboardPage() {
       </p>
 
       <Separator className="my-6" />
+
+      {/* Date Range Filter */}
+      <div className="mb-6">
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
@@ -224,8 +249,38 @@ export default function DashboardPage() {
                           return `${d.getMonth() + 1}/${d.getDate()}`;
                         }}
                       />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip {...TOOLTIP_STYLE} />
+                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const d = payload[0].payload as { date: string; count: number; snippets: string[] };
+                          const dateLabel = new Date(d.date + "T00:00:00").toLocaleDateString(undefined, {
+                            month: "short", day: "numeric", year: "numeric",
+                          });
+                          return (
+                            <div className="rounded-md border bg-popover px-3 py-2 shadow-md max-w-xs">
+                              <p className="text-xs font-medium font-mono">{dateLabel}</p>
+                              <p className="text-xs text-muted-foreground mb-1">
+                                {d.count} {d.count === 1 ? "post" : "posts"}
+                              </p>
+                              {d.snippets.length > 0 && (
+                                <ul className="space-y-1 border-t pt-1">
+                                  {d.snippets.slice(0, 5).map((s, i) => (
+                                    <li key={i} className="text-[11px] leading-tight text-muted-foreground">
+                                      {s}
+                                    </li>
+                                  ))}
+                                  {d.snippets.length > 5 && (
+                                    <li className="text-[11px] text-muted-foreground italic">
+                                      +{d.snippets.length - 5} more
+                                    </li>
+                                  )}
+                                </ul>
+                              )}
+                            </div>
+                          );
+                        }}
+                      />
                       <Line
                         type="monotone"
                         dataKey="count"

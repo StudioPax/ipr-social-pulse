@@ -3,7 +3,7 @@
 
 import { PILLARS, PERFORMANCE_TIERS, RECOMMENDED_ACTIONS } from "@/lib/tokens";
 
-export const ANALYSIS_PROMPT_VERSION = "v1.3";
+export const ANALYSIS_PROMPT_VERSION = "v1.4";
 
 /** Shape of a post sent to the LLM for analysis */
 export interface PostForAnalysis {
@@ -41,6 +41,18 @@ export interface PostAnalysisResult {
   tier_rationale: string;
   key_topics: string[];
   summary: string;
+  fw_values_lead_score: number;
+  fw_values_lead_eval: string;
+  fw_causal_chain_score: number;
+  fw_causal_chain_eval: string;
+  fw_cultural_freight_score: number;
+  fw_cultural_freight_eval: string;
+  fw_episodic_thematic_score: number;
+  fw_episodic_thematic_eval: string;
+  fw_solutions_framing_score: number;
+  fw_solutions_framing_eval: string;
+  fw_overall_score: number;
+  fw_rewrite_rec: string;
 }
 
 /** Build the system prompt for IPR post analysis */
@@ -111,6 +123,19 @@ Tag with any applicable Northwestern strategic areas:
 - ai_data: AI and data science initiatives
 - none: No specific NU alignment
 
+## FrameWorks Institute Strategic Communications Analysis
+Additionally, evaluate each post as a strategic communications analyst specializing in nonprofit and social impact messaging, using the FrameWorks Institute methodology. Score each dimension 1-5 and provide ONE terse sentence per dimension.
+
+Dimensions:
+1. VALUES LEAD — Does it open with a broadly shared value, or lead with stats/problems? (5 = strong values lead, 1 = leads with stats/problems only)
+2. CAUSAL CHAIN — Does it explain systemic causes, or imply individual blame? (5 = clear systemic explanation, 1 = implies individual blame)
+3. CULTURAL FREIGHT — Does it accidentally activate bootstrap/charity/deserving mindsets? (5 = avoids cultural freight entirely, 1 = heavily activates negative frames)
+4. EPISODIC vs. THEMATIC — Does it bridge personal story to structural patterns? (5 = excellent thematic framing, 1 = purely episodic with no structural bridge)
+5. SOLUTIONS FRAMING — Does it leave the audience with agency, or passive sympathy? (5 = strong solutions/agency framing, 1 = leaves audience with passive sympathy)
+
+OVERALL score = sum of the 5 dimension scores (out of 25).
+Provide one rewrite recommendation only — a single actionable suggestion to improve the post's strategic framing.
+
 ## Output Schema
 For each post, return a JSON object with these exact fields:
 {
@@ -136,7 +161,19 @@ For each post, return a JSON object with these exact fields:
   "policy_relevance_rationale": "1-2 sentence explanation of the policy relevance score — what makes this post more or less relevant to IPR's policy mission",
   "tier_rationale": "1-2 sentence explanation of the tier assignment — how engagement level and policy relevance combined to determine this tier, and what it means for IPR's strategy",
   "key_topics": ["topic1", "topic2", "topic3"],
-  "summary": "One-sentence summary of the post's core message"
+  "summary": "One-sentence summary of the post's core message",
+  "fw_values_lead_score": 1-5,
+  "fw_values_lead_eval": "One terse sentence evaluating the values lead",
+  "fw_causal_chain_score": 1-5,
+  "fw_causal_chain_eval": "One terse sentence evaluating causal chain framing",
+  "fw_cultural_freight_score": 1-5,
+  "fw_cultural_freight_eval": "One terse sentence evaluating cultural freight risk",
+  "fw_episodic_thematic_score": 1-5,
+  "fw_episodic_thematic_eval": "One terse sentence on episodic vs thematic framing",
+  "fw_solutions_framing_score": 1-5,
+  "fw_solutions_framing_eval": "One terse sentence on solutions framing",
+  "fw_overall_score": 5-25,
+  "fw_rewrite_rec": "One actionable rewrite recommendation"
 }
 
 Return a JSON array of objects, one per post. Nothing else.`;
@@ -218,5 +255,17 @@ export function parseAnalysisResponse(raw: string): PostAnalysisResult[] {
       ? r.key_topics.map(String)
       : [],
     summary: String(r.summary || ""),
+    fw_values_lead_score: Math.min(5, Math.max(1, Number(r.fw_values_lead_score) || 3)),
+    fw_values_lead_eval: String(r.fw_values_lead_eval || ""),
+    fw_causal_chain_score: Math.min(5, Math.max(1, Number(r.fw_causal_chain_score) || 3)),
+    fw_causal_chain_eval: String(r.fw_causal_chain_eval || ""),
+    fw_cultural_freight_score: Math.min(5, Math.max(1, Number(r.fw_cultural_freight_score) || 3)),
+    fw_cultural_freight_eval: String(r.fw_cultural_freight_eval || ""),
+    fw_episodic_thematic_score: Math.min(5, Math.max(1, Number(r.fw_episodic_thematic_score) || 3)),
+    fw_episodic_thematic_eval: String(r.fw_episodic_thematic_eval || ""),
+    fw_solutions_framing_score: Math.min(5, Math.max(1, Number(r.fw_solutions_framing_score) || 3)),
+    fw_solutions_framing_eval: String(r.fw_solutions_framing_eval || ""),
+    fw_overall_score: Math.min(25, Math.max(5, Number(r.fw_overall_score) || 15)),
+    fw_rewrite_rec: String(r.fw_rewrite_rec || ""),
   }));
 }
