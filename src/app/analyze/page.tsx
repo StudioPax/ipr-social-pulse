@@ -69,7 +69,7 @@ export default function AnalyzePage() {
       supabase
         .from("post_analyses")
         .select(
-          "post_id, pillar_primary, pillar_secondary, sentiment_label, sentiment_score, performance_tier, recommended_action, policy_relevance, content_type, audience_fit"
+          "post_id, pillar_primary, pillar_secondary, pillar_confidence, pillar_rationale, sentiment_label, sentiment_score, sentiment_confidence, sentiment_rationale, performance_tier, recommended_action, policy_relevance, content_type, audience_fit, nu_alignment_tags, research_title, research_url, research_authors, key_topics, summary"
         ),
     ]);
 

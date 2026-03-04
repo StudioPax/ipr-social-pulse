@@ -3,7 +3,7 @@
 
 import { PILLARS, PERFORMANCE_TIERS, RECOMMENDED_ACTIONS } from "@/lib/tokens";
 
-export const ANALYSIS_PROMPT_VERSION = "v1.1";
+export const ANALYSIS_PROMPT_VERSION = "v1.2";
 
 /** Shape of a post sent to the LLM for analysis */
 export interface PostForAnalysis {
@@ -36,6 +36,9 @@ export interface PostAnalysisResult {
   research_url: string | null;
   research_authors: string[];
   research_confidence: number;
+  sentiment_rationale: string;
+  key_topics: string[];
+  summary: string;
 }
 
 /** Build the system prompt for IPR post analysis */
@@ -126,7 +129,10 @@ For each post, return a JSON object with these exact fields:
   "research_title": "detected research title or null",
   "research_url": "detected research URL or null",
   "research_authors": ["detected author names"] or [],
-  "research_confidence": 0.0-1.0
+  "research_confidence": 0.0-1.0,
+  "sentiment_rationale": "1-2 sentence explanation of sentiment classification",
+  "key_topics": ["topic1", "topic2", "topic3"],
+  "summary": "One-sentence summary of the post's core message"
 }
 
 Return a JSON array of objects, one per post. Nothing else.`;
@@ -201,5 +207,10 @@ export function parseAnalysisResponse(raw: string): PostAnalysisResult[] {
       ? r.research_authors.map(String)
       : [],
     research_confidence: Number(r.research_confidence) || 0,
+    sentiment_rationale: String(r.sentiment_rationale || ""),
+    key_topics: Array.isArray(r.key_topics)
+      ? r.key_topics.map(String)
+      : [],
+    summary: String(r.summary || ""),
   }));
 }

@@ -1,17 +1,20 @@
 // @component PostsTable — Data table for collected posts
 // Uses shadcn/ui Table + TanStack Table v8
+// Features: sortable columns, collapsible filter bar, expandable detail rows
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, Fragment } from "react";
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
+  getExpandedRowModel,
   flexRender,
   type ColumnDef,
   type SortingState,
+  type ExpandedState,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -63,13 +66,23 @@ export interface PostAnalysis {
   post_id: string;
   pillar_primary: string | null;
   pillar_secondary: string | null;
+  pillar_confidence: number | null;
+  pillar_rationale: string | null;
   sentiment_label: string | null;
   sentiment_score: number | null;
+  sentiment_confidence: number | null;
+  sentiment_rationale: string | null;
   performance_tier: string | null;
   recommended_action: string | null;
   policy_relevance: number | null;
   content_type: string | null;
   audience_fit: string | null;
+  nu_alignment_tags: string[] | null;
+  research_title: string | null;
+  research_url: string | null;
+  research_authors: string[] | null;
+  key_topics: string[] | null;
+  summary: string | null;
 }
 
 const SENTIMENT_COLORS: Record<string, string> = {
@@ -93,12 +106,35 @@ const TIER_LABELS: Record<string, string> = {
   T4_Underperformer: "T4",
 };
 
+const TIER_FULL_LABELS: Record<string, string> = {
+  T1_PolicyEngine: "T1 — Policy Engine",
+  T2_Visibility: "T2 — Visibility",
+  T3_Niche: "T3 — Niche",
+  T4_Underperformer: "T4 — Underperformer",
+};
+
 const ACTION_LABELS: Record<string, string> = {
   amplify: "Amplify",
   template: "Template",
   promote_niche: "Promote",
   diagnose: "Diagnose",
   archive: "Archive",
+};
+
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  research_promo: "Research Promo",
+  achievement: "Achievement",
+  policy: "Policy",
+  event: "Event",
+  general: "General",
+};
+
+const AUDIENCE_LABELS: Record<string, string> = {
+  policymaker: "Policymaker",
+  faculty: "Faculty",
+  donor: "Donor",
+  public: "Public",
+  mixed: "Mixed",
 };
 
 const SENTIMENT_ORDER: Record<string, number> = {
@@ -132,6 +168,337 @@ const COLUMN_TOOLTIPS: Record<string, string> = {
     "Amplify: boost high performers. Template: use as model. Promote: invest in niche content. Diagnose: investigate underperformance. Archive: low relevance.",
 };
 
+// --- Filter definitions ---
+interface FilterOption {
+  value: string;
+  label: string;
+  color?: string;
+}
+
+interface FilterGroup {
+  key: string;
+  label: string;
+  options: FilterOption[];
+}
+
+function buildFilterGroups(
+  posts: Post[],
+  analyses?: Map<string, PostAnalysis>
+): FilterGroup[] {
+  const platforms = Array.from(new Set(posts.map((p) => p.platform))).sort();
+  const pillars = Array.from(new Set(posts.map((p) => p.pillar_tag).filter(Boolean))).sort() as string[];
+
+  const sentiments = new Set<string>();
+  const tiers = new Set<string>();
+  const actions = new Set<string>();
+  const contentTypes = new Set<string>();
+  const audiences = new Set<string>();
+
+  if (analyses) {
+    analyses.forEach((a) => {
+      if (a.sentiment_label) sentiments.add(a.sentiment_label);
+      if (a.performance_tier) tiers.add(a.performance_tier);
+      if (a.recommended_action) actions.add(a.recommended_action);
+      if (a.content_type) contentTypes.add(a.content_type);
+      if (a.audience_fit) audiences.add(a.audience_fit);
+    });
+  }
+
+  return [
+    {
+      key: "platform",
+      label: "Platform",
+      options: platforms.map((p) => ({
+        value: p,
+        label: p.charAt(0).toUpperCase() + p.slice(1),
+        color: PLATFORM_COLORS[p],
+      })),
+    },
+    {
+      key: "pillar",
+      label: "Pillar",
+      options: pillars.map((p) => ({
+        value: p,
+        label: p,
+        color: PILLAR_COLORS[p],
+      })),
+    },
+    {
+      key: "sentiment",
+      label: "Sentiment",
+      options: Array.from(sentiments)
+        .sort((a, b) => (SENTIMENT_ORDER[a] ?? 99) - (SENTIMENT_ORDER[b] ?? 99))
+        .map((s) => ({
+          value: s,
+          label: s.charAt(0).toUpperCase() + s.slice(1),
+          color: SENTIMENT_COLORS[s],
+        })),
+    },
+    {
+      key: "tier",
+      label: "Tier",
+      options: Array.from(tiers)
+        .sort((a, b) => (TIER_ORDER[a] ?? 99) - (TIER_ORDER[b] ?? 99))
+        .map((t) => ({
+          value: t,
+          label: TIER_FULL_LABELS[t] || t,
+          color: TIER_COLORS[t],
+        })),
+    },
+    {
+      key: "action",
+      label: "Action",
+      options: Array.from(actions)
+        .sort((a, b) => (ACTION_ORDER[a] ?? 99) - (ACTION_ORDER[b] ?? 99))
+        .map((a) => ({
+          value: a,
+          label: ACTION_LABELS[a] || a,
+        })),
+    },
+    {
+      key: "content_type",
+      label: "Content Type",
+      options: Array.from(contentTypes).sort().map((c) => ({
+        value: c,
+        label: CONTENT_TYPE_LABELS[c] || c,
+      })),
+    },
+    {
+      key: "audience",
+      label: "Audience",
+      options: Array.from(audiences).sort().map((a) => ({
+        value: a,
+        label: AUDIENCE_LABELS[a] || a,
+      })),
+    },
+  ];
+}
+
+type ActiveFilters = Record<string, Set<string>>;
+
+function matchesFilters(
+  post: Post,
+  analysis: PostAnalysis | undefined,
+  filters: ActiveFilters
+): boolean {
+  for (const [key, values] of Object.entries(filters)) {
+    if (values.size === 0) continue;
+    let postValue: string | null = null;
+    switch (key) {
+      case "platform":
+        postValue = post.platform;
+        break;
+      case "pillar":
+        postValue = post.pillar_tag;
+        break;
+      case "sentiment":
+        postValue = analysis?.sentiment_label ?? null;
+        break;
+      case "tier":
+        postValue = analysis?.performance_tier ?? null;
+        break;
+      case "action":
+        postValue = analysis?.recommended_action ?? null;
+        break;
+      case "content_type":
+        postValue = analysis?.content_type ?? null;
+        break;
+      case "audience":
+        postValue = analysis?.audience_fit ?? null;
+        break;
+    }
+    if (!postValue || !values.has(postValue)) return false;
+  }
+  return true;
+}
+
+// --- Expanded row detail ---
+function ExpandedRowDetail({
+  post,
+  analysis,
+}: {
+  post: Post;
+  analysis: PostAnalysis | undefined;
+}) {
+  if (!analysis) {
+    return (
+      <div className="px-4 py-3 text-sm text-muted-foreground italic">
+        No analysis data available. Run an analysis to see details.
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-4 space-y-4 bg-muted/30">
+      {/* Summary + Full Text */}
+      <div className="space-y-2">
+        {analysis.summary && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Summary</p>
+            <p className="text-sm mt-0.5">{analysis.summary}</p>
+          </div>
+        )}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Full Text</p>
+          <p className="text-sm mt-0.5 whitespace-pre-wrap">{post.content_text || "—"}</p>
+        </div>
+      </div>
+
+      {/* Key Topics */}
+      {analysis.key_topics && analysis.key_topics.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Key Topics</p>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {analysis.key_topics.map((topic, i) => (
+              <Badge key={i} variant="secondary" className="text-[10px]">
+                {topic}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Analysis Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Pillar */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pillar</p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <Badge className={`text-[10px] ${PILLAR_COLORS[analysis.pillar_primary || ""] || "bg-muted"}`}>
+              {analysis.pillar_primary}
+            </Badge>
+            {analysis.pillar_secondary && (
+              <Badge variant="outline" className="text-[10px]">
+                {analysis.pillar_secondary}
+              </Badge>
+            )}
+          </div>
+          {analysis.pillar_confidence != null && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Confidence: {Math.round(analysis.pillar_confidence * 100)}%
+            </p>
+          )}
+        </div>
+
+        {/* Sentiment */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sentiment</p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <Badge className={`text-[10px] ${SENTIMENT_COLORS[analysis.sentiment_label || ""] || "bg-muted"}`}>
+              {analysis.sentiment_label}
+            </Badge>
+            {analysis.sentiment_score != null && (
+              <span className="text-[10px] font-mono text-muted-foreground">
+                ({analysis.sentiment_score > 0 ? "+" : ""}{analysis.sentiment_score.toFixed(2)})
+              </span>
+            )}
+          </div>
+          {analysis.sentiment_confidence != null && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Confidence: {Math.round(analysis.sentiment_confidence * 100)}%
+            </p>
+          )}
+        </div>
+
+        {/* Performance */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Performance</p>
+          <div className="mt-1">
+            <Badge className={`text-[10px] ${TIER_COLORS[analysis.performance_tier || ""] || "bg-muted"}`}>
+              {TIER_FULL_LABELS[analysis.performance_tier || ""] || analysis.performance_tier}
+            </Badge>
+          </div>
+          {analysis.policy_relevance != null && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Policy Relevance: {Math.round(analysis.policy_relevance * 100)}%
+            </p>
+          )}
+        </div>
+
+        {/* Classification */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Classification</p>
+          <div className="mt-1 space-y-0.5 text-xs">
+            <p><span className="text-muted-foreground">Type:</span> {CONTENT_TYPE_LABELS[analysis.content_type || ""] || analysis.content_type || "—"}</p>
+            <p><span className="text-muted-foreground">Audience:</span> {AUDIENCE_LABELS[analysis.audience_fit || ""] || analysis.audience_fit || "—"}</p>
+            <p><span className="text-muted-foreground">Action:</span> {ACTION_LABELS[analysis.recommended_action || ""] || analysis.recommended_action || "—"}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Rationales */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {analysis.pillar_rationale && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pillar Rationale</p>
+            <p className="text-sm text-muted-foreground mt-0.5 italic">{analysis.pillar_rationale}</p>
+          </div>
+        )}
+        {analysis.sentiment_rationale && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sentiment Rationale</p>
+            <p className="text-sm text-muted-foreground mt-0.5 italic">{analysis.sentiment_rationale}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Research Linkage */}
+      {analysis.research_title && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Research Linkage</p>
+          <div className="mt-1 text-sm">
+            <p className="font-medium">{analysis.research_title}</p>
+            {analysis.research_authors && analysis.research_authors.length > 0 && (
+              <p className="text-xs text-muted-foreground">{analysis.research_authors.join(", ")}</p>
+            )}
+            {analysis.research_url && (
+              <a
+                href={analysis.research_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-accent hover:underline"
+              >
+                View research
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* NU Alignment */}
+      {analysis.nu_alignment_tags &&
+        analysis.nu_alignment_tags.length > 0 &&
+        !analysis.nu_alignment_tags.includes("none") && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">NU Alignment</p>
+            <div className="flex gap-1 mt-1">
+              {analysis.nu_alignment_tags.map((tag, i) => (
+                <Badge key={i} variant="outline" className="text-[10px] capitalize">
+                  {tag.replace("_", " ")}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+      {/* Post link */}
+      {post.content_url && (
+        <div className="pt-2 border-t">
+          <a
+            href={post.content_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-accent hover:underline"
+          >
+            View original post →
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Main component ---
 export function PostsTable({
   posts,
   analyses,
@@ -143,13 +510,68 @@ export function PostsTable({
     { id: "published_at", desc: true },
   ]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
+
+  const filterGroups = useMemo(
+    () => buildFilterGroups(posts, analyses),
+    [posts, analyses]
+  );
+
+  const activeFilterCount = useMemo(
+    () => Object.values(activeFilters).reduce((sum, s) => sum + s.size, 0),
+    [activeFilters]
+  );
+
+  const toggleFilter = useCallback((groupKey: string, value: string) => {
+    setActiveFilters((prev) => {
+      const next = { ...prev };
+      const set = new Set(prev[groupKey] || []);
+      if (set.has(value)) {
+        set.delete(value);
+      } else {
+        set.add(value);
+      }
+      next[groupKey] = set;
+      return next;
+    });
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setActiveFilters({});
+  }, []);
+
+  // Pre-filter posts based on chip filters (before passing to TanStack)
+  const filteredPosts = useMemo(() => {
+    if (activeFilterCount === 0) return posts;
+    return posts.filter((post) =>
+      matchesFilters(post, analyses?.get(post.id), activeFilters)
+    );
+  }, [posts, analyses, activeFilters, activeFilterCount]);
 
   const columns = useMemo<ColumnDef<Post>[]>(
     () => [
       {
+        id: "expander",
+        header: "",
+        size: 30,
+        cell: ({ row }) => (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              row.toggleExpanded();
+            }}
+            className="text-muted-foreground hover:text-foreground text-sm px-1"
+          >
+            {row.getIsExpanded() ? "▾" : "▸"}
+          </button>
+        ),
+      },
+      {
         accessorKey: "platform",
         header: "Platform",
-        size: 100,
+        size: 90,
         cell: ({ row }) => {
           const platform = row.getValue("platform") as string;
           return (
@@ -164,13 +586,14 @@ export function PostsTable({
       {
         accessorKey: "content_text",
         header: "Content",
-        size: 400,
+        size: 350,
         cell: ({ row }) => {
           const text = row.getValue("content_text") as string | null;
+          const analysis = analyses?.get(row.original.id);
           const url = row.original.content_url;
           return (
-            <div className="max-w-[400px]">
-              <p className="text-sm truncate">{text || "—"}</p>
+            <div className="max-w-[350px]">
+              <p className="text-sm truncate">{analysis?.summary || text || "—"}</p>
               {url && (
                 <a
                   href={url}
@@ -188,7 +611,7 @@ export function PostsTable({
       {
         accessorKey: "published_at",
         header: "Published",
-        size: 120,
+        size: 100,
         cell: ({ row }) => {
           const date = row.getValue("published_at") as string | null;
           if (!date) return <span className="text-muted-foreground">—</span>;
@@ -206,7 +629,7 @@ export function PostsTable({
       {
         accessorKey: "engagement_total",
         header: "Engagement",
-        size: 100,
+        size: 90,
         cell: ({ row }) => {
           const total = row.getValue("engagement_total") as number | null;
           const likes = row.original.likes || 0;
@@ -227,7 +650,7 @@ export function PostsTable({
       {
         accessorKey: "pillar_tag",
         header: "Pillar",
-        size: 120,
+        size: 110,
         cell: ({ row }) => {
           const pillar = row.getValue("pillar_tag") as string | null;
           if (!pillar) {
@@ -291,7 +714,7 @@ export function PostsTable({
           const b = analyses?.get(rowB.original.id)?.performance_tier || "";
           return (TIER_ORDER[a] ?? 99) - (TIER_ORDER[b] ?? 99);
         },
-        size: 60,
+        size: 50,
         cell: ({ row }) => {
           const analysis = analyses?.get(row.original.id);
           if (!analysis?.performance_tier) {
@@ -323,7 +746,7 @@ export function PostsTable({
           const b = analyses?.get(rowB.original.id)?.recommended_action || "";
           return (ACTION_ORDER[a] ?? 99) - (ACTION_ORDER[b] ?? 99);
         },
-        size: 90,
+        size: 80,
         cell: ({ row }) => {
           const analysis = analyses?.get(row.original.id);
           if (!analysis?.recommended_action) {
@@ -336,33 +759,22 @@ export function PostsTable({
           );
         },
       },
-      {
-        accessorKey: "content_format",
-        header: "Type",
-        size: 80,
-        cell: ({ row }) => {
-          const format = row.getValue("content_format") as string | null;
-          return (
-            <span className="text-xs capitalize text-muted-foreground">
-              {format || "—"}
-            </span>
-          );
-        },
-      },
     ],
     [analyses]
   );
 
   const table = useReactTable({
-    data: posts,
+    data: filteredPosts,
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting, globalFilter, expanded },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    onExpandedChange: setExpanded,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     initialState: {
       pagination: { pageSize: 25 },
     },
@@ -372,16 +784,78 @@ export function PostsTable({
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4">
-        <Input
-          placeholder="Search posts..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Search posts..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="max-w-sm"
+          />
+          <Button
+            variant={showFilters ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="shrink-0"
+          >
+            Filters
+            {activeFilterCount > 0 && (
+              <Badge className="ml-1.5 bg-white/20 text-[10px] px-1.5 py-0">
+                {activeFilterCount}
+              </Badge>
+            )}
+          </Button>
+          {activeFilterCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="text-xs text-muted-foreground"
+            >
+              Clear all
+            </Button>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground shrink-0">
           {table.getFilteredRowModel().rows.length} posts
         </span>
       </div>
+
+      {/* Filter Bar */}
+      {showFilters && (
+        <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+          {filterGroups.map((group) => (
+            <div key={group.key}>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                {group.label}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {group.options.map((opt) => {
+                  const isActive = activeFilters[group.key]?.has(opt.value);
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => toggleFilter(group.key, opt.value)}
+                      className={`
+                        inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium
+                        transition-all border
+                        ${
+                          isActive
+                            ? opt.color
+                              ? `${opt.color} border-transparent ring-1 ring-offset-1 ring-accent`
+                              : "bg-accent text-white border-transparent"
+                            : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+                        }
+                      `}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-md border">
@@ -392,8 +866,16 @@ export function PostsTable({
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className="cursor-pointer select-none"
-                    onClick={header.column.getToggleSortingHandler()}
+                    className={
+                      header.id === "expander"
+                        ? "w-[30px] px-1"
+                        : "cursor-pointer select-none"
+                    }
+                    onClick={
+                      header.id === "expander"
+                        ? undefined
+                        : header.column.getToggleSortingHandler()
+                    }
                   >
                     <div className="flex items-center gap-1">
                       {flexRender(
@@ -420,16 +902,34 @@ export function PostsTable({
               </TableRow>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                <Fragment key={row.id}>
+                  <TableRow
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => row.toggleExpanded()}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className={cell.column.id === "expander" ? "px-1" : undefined}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {row.getIsExpanded() && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="p-0"
+                      >
+                        <ExpandedRowDetail
+                          post={row.original}
+                          analysis={analyses?.get(row.original.id)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
               ))
             )}
           </TableBody>

@@ -173,7 +173,10 @@ export type Database = {
           research_url: string | null
           sentiment_confidence: number | null
           sentiment_label: string | null
+          sentiment_rationale: string | null
           sentiment_score: number | null
+          key_topics: string[] | null
+          summary: string | null
         }
         Insert: {
           analysis_run_id?: string | null
@@ -199,7 +202,10 @@ export type Database = {
           research_url?: string | null
           sentiment_confidence?: number | null
           sentiment_label?: string | null
+          sentiment_rationale?: string | null
           sentiment_score?: number | null
+          key_topics?: string[] | null
+          summary?: string | null
         }
         Update: {
           analysis_run_id?: string | null
@@ -225,7 +231,10 @@ export type Database = {
           research_url?: string | null
           sentiment_confidence?: number | null
           sentiment_label?: string | null
+          sentiment_rationale?: string | null
           sentiment_score?: number | null
+          key_topics?: string[] | null
+          summary?: string | null
         }
         Relationships: [
           {
