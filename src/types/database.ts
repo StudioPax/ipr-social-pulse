@@ -174,13 +174,14 @@ export type Database = {
           media_suggestion: string | null
           mentions: string[] | null
           narrative_angle: string | null
-          phase: string
           publish_order: number | null
           published_post_id: string | null
           scheduled_date: string | null
+          stage: string
           status: string
           suggested_content: string | null
           updated_at: string | null
+          week_number: number | null
         }
         Insert: {
           audience_segment: string
@@ -195,13 +196,14 @@ export type Database = {
           media_suggestion?: string | null
           mentions?: string[] | null
           narrative_angle?: string | null
-          phase?: string
           publish_order?: number | null
           published_post_id?: string | null
           scheduled_date?: string | null
+          stage?: string
           status?: string
           suggested_content?: string | null
           updated_at?: string | null
+          week_number?: number | null
         }
         Update: {
           audience_segment?: string
@@ -216,13 +218,14 @@ export type Database = {
           media_suggestion?: string | null
           mentions?: string[] | null
           narrative_angle?: string | null
-          phase?: string
           publish_order?: number | null
           published_post_id?: string | null
           scheduled_date?: string | null
+          stage?: string
           status?: string
           suggested_content?: string | null
           updated_at?: string | null
+          week_number?: number | null
         }
         Relationships: [
           {
@@ -302,9 +305,11 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          campaign_type: string
           client_id: string
           created_at: string | null
           created_by: string | null
+          duration_weeks: number | null
           embargo_until: string | null
           id: string
           nu_alignment_tags: string[] | null
@@ -314,15 +319,18 @@ export type Database = {
           research_authors: string[] | null
           research_doi: string | null
           research_url: string | null
+          start_date: string | null
           status: string
           target_audiences: string[]
           title: string
           updated_at: string | null
         }
         Insert: {
+          campaign_type?: string
           client_id: string
           created_at?: string | null
           created_by?: string | null
+          duration_weeks?: number | null
           embargo_until?: string | null
           id?: string
           nu_alignment_tags?: string[] | null
@@ -332,15 +340,18 @@ export type Database = {
           research_authors?: string[] | null
           research_doi?: string | null
           research_url?: string | null
+          start_date?: string | null
           status?: string
           target_audiences?: string[]
           title: string
           updated_at?: string | null
         }
         Update: {
+          campaign_type?: string
           client_id?: string
           created_at?: string | null
           created_by?: string | null
+          duration_weeks?: number | null
           embargo_until?: string | null
           id?: string
           nu_alignment_tags?: string[] | null
@@ -350,6 +361,7 @@ export type Database = {
           research_authors?: string[] | null
           research_doi?: string | null
           research_url?: string | null
+          start_date?: string | null
           status?: string
           target_audiences?: string[]
           title?: string

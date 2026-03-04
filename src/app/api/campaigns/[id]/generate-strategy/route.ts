@@ -275,7 +275,7 @@ export async function POST(
               mentions: plan.mentions || [],
               media_suggestion: plan.media_suggestion || null,
               status: "planned" as const,
-              phase: "launch" as const,
+              stage: "rollout" as const,
               publish_order: channelCount,
             };
 

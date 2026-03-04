@@ -10,7 +10,7 @@ import {
   TARGET_AUDIENCES,
   CAMPAIGN_CHANNELS,
   CHANNEL_STATUSES,
-  CAMPAIGN_PHASES,
+  CAMPAIGN_STAGES,
   type DocumentRole,
 } from "@/lib/tokens";
 import { Badge } from "@/components/ui/badge";
@@ -117,7 +117,8 @@ interface CampaignChannel {
   mentions: string[] | null;
   media_suggestion: string | null;
   status: string;
-  phase: string;
+  stage: string;
+  week_number: number | null;
   scheduled_for: string | null;
   published_post_id: string | null;
   publish_order: number | null;
@@ -323,7 +324,7 @@ export default function CampaignDetailPage() {
   const [showAddChannel, setShowAddChannel] = useState(false);
   const [newChannelType, setNewChannelType] = useState("");
   const [newChannelAudience, setNewChannelAudience] = useState("");
-  const [newChannelPhase, setNewChannelPhase] = useState("launch");
+  const [newChannelStage, setNewChannelStage] = useState("rollout");
   const [newChannelContent, setNewChannelContent] = useState("");
   const [addingChannel, setAddingChannel] = useState(false);
 
@@ -620,23 +621,23 @@ export default function CampaignDetailPage() {
   };
 
   // -------------------------------------------------------------------------
-  // Channel phase change
+  // Channel stage change
   // -------------------------------------------------------------------------
 
-  const quickPhaseChange = async (ch: CampaignChannel, newPhase: string) => {
+  const quickStageChange = async (ch: CampaignChannel, newStage: string) => {
     try {
       const res = await fetch(
         `/api/campaigns/${campaignId}/channels/${ch.id}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phase: newPhase }),
+          body: JSON.stringify({ stage: newStage }),
         }
       );
-      if (!res.ok) throw new Error("Failed to update phase");
+      if (!res.ok) throw new Error("Failed to update stage");
       await loadCampaign();
     } catch {
-      toast({ title: "Error", description: "Failed to update channel phase." });
+      toast({ title: "Error", description: "Failed to update channel stage." });
     }
   };
 
@@ -654,7 +655,7 @@ export default function CampaignDetailPage() {
         body: JSON.stringify({
           channel: newChannelType,
           audience_segment: newChannelAudience,
-          phase: newChannelPhase,
+          stage: newChannelStage,
           suggested_content: newChannelContent.trim() || null,
           status: "planned",
         }),
@@ -666,7 +667,7 @@ export default function CampaignDetailPage() {
       });
       setNewChannelType("");
       setNewChannelAudience("");
-      setNewChannelPhase("launch");
+      setNewChannelStage("rollout");
       setNewChannelContent("");
       setShowAddChannel(false);
       await loadCampaign();
@@ -1934,28 +1935,30 @@ export default function CampaignDetailPage() {
                         {/* Phase — inline dropdown */}
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select
-                            value={ch.phase || "launch"}
-                            onValueChange={(v) => quickPhaseChange(ch, v)}
+                            value={ch.stage || "rollout"}
+                            onValueChange={(v) => quickStageChange(ch, v)}
                           >
                             <SelectTrigger className="h-7 w-[100px] text-[11px] px-2 py-0 border-0 shadow-none">
                               <Badge
                                 variant="outline"
                                 className={cn(
                                   "text-[10px]",
-                                  ch.phase === "growth"
+                                  ch.stage === "sustain"
                                     ? "bg-green-100 text-green-800"
-                                    : ch.phase === "maintain"
+                                    : ch.stage === "measure"
                                     ? "bg-amber-100 text-amber-800"
+                                    : ch.stage === "pre_launch"
+                                    ? "bg-purple-100 text-purple-800"
                                     : "bg-blue-100 text-blue-800"
                                 )}
                               >
-                                {(CAMPAIGN_PHASES.find((p) => p.value === (ch.phase || "launch"))?.label) || ch.phase}
+                                {(CAMPAIGN_STAGES.find((s) => s.value === (ch.stage || "rollout"))?.label) || ch.stage}
                               </Badge>
                             </SelectTrigger>
                             <SelectContent>
-                              {CAMPAIGN_PHASES.map((p) => (
-                                <SelectItem key={p.value} value={p.value} className="text-xs">
-                                  {p.label}
+                              {CAMPAIGN_STAGES.map((s) => (
+                                <SelectItem key={s.value} value={s.value} className="text-xs">
+                                  {s.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -2277,16 +2280,16 @@ export default function CampaignDetailPage() {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                        Phase
+                        Stage
                       </Label>
-                      <Select value={newChannelPhase} onValueChange={setNewChannelPhase}>
+                      <Select value={newChannelStage} onValueChange={setNewChannelStage}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {CAMPAIGN_PHASES.map((p) => (
-                            <SelectItem key={p.value} value={p.value} className="text-xs">
-                              {p.label}
+                          {CAMPAIGN_STAGES.map((s) => (
+                            <SelectItem key={s.value} value={s.value} className="text-xs">
+                              {s.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -2326,7 +2329,7 @@ export default function CampaignDetailPage() {
                         setShowAddChannel(false);
                         setNewChannelType("");
                         setNewChannelAudience("");
-                        setNewChannelPhase("launch");
+                        setNewChannelStage("rollout");
                         setNewChannelContent("");
                       }}
                       disabled={addingChannel}

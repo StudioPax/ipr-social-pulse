@@ -125,14 +125,33 @@ export const CAMPAIGN_CHANNELS = [
 
 export type CampaignChannel = (typeof CAMPAIGN_CHANNELS)[number]["value"];
 
-/** Campaign lifecycle phases */
-export const CAMPAIGN_PHASES = [
-  { value: "launch", label: "Launch", description: "Initial rollout — awareness and reach" },
-  { value: "growth", label: "Growth", description: "Expand engagement and deepen audience connection" },
-  { value: "maintain", label: "Maintain", description: "Sustain momentum with fresh content and updates" },
+/** Campaign types — what kind of campaign */
+export const CAMPAIGN_TYPES = [
+  { value: "new_research", label: "New Research", description: "Brand new research — multi-week rollout from pre-launch to measurement" },
+  { value: "amplify", label: "Amplify", description: "Boost existing high-performing content" },
+  { value: "policy_moment", label: "Policy Moment", description: "Rapid reactive campaign tied to a policy event (24–72hr)" },
+  { value: "faculty_spotlight", label: "Faculty Spotlight", description: "Researcher profile series" },
+  { value: "donor_cultivation", label: "Donor Cultivation", description: "Impact-focused donor engagement" },
 ] as const;
 
-export type CampaignPhase = (typeof CAMPAIGN_PHASES)[number]["value"];
+export type CampaignType = (typeof CAMPAIGN_TYPES)[number]["value"];
+
+/** Campaign stages — phases within any campaign (renamed from CAMPAIGN_PHASES) */
+export const CAMPAIGN_STAGES = [
+  { value: "pre_launch", label: "Pre-Launch", description: "Teaser content, internal prep, embargo period" },
+  { value: "rollout", label: "Rollout", description: "Active publishing window" },
+  { value: "sustain", label: "Sustain", description: "Follow-up content, conversation monitoring" },
+  { value: "measure", label: "Measure", description: "Performance review period" },
+] as const;
+
+export type CampaignStage = (typeof CAMPAIGN_STAGES)[number]["value"];
+
+/** Duration options for New Research campaigns */
+export const CAMPAIGN_DURATIONS = [
+  { value: 4, label: "4 weeks" },
+  { value: 6, label: "6 weeks" },
+  { value: 8, label: "8 weeks" },
+] as const;
 
 /** Campaign document roles */
 export const DOCUMENT_ROLES = [
