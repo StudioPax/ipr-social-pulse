@@ -61,6 +61,9 @@ import {
   Save,
   RefreshCw,
   AlertTriangle,
+  Copy,
+  ClipboardCheck,
+  Upload,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -72,6 +75,9 @@ interface Campaign {
   client_id: string;
   title: string;
   status: string;
+  campaign_type: string;
+  duration_weeks: number | null;
+  channels_used: string[];
   research_authors: string[] | null;
   research_doi: string | null;
   research_url: string | null;
@@ -82,6 +88,26 @@ interface Campaign {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface ImportPreview {
+  valid: boolean;
+  summary: {
+    total_deliverables: number;
+    channels: string[];
+    weeks: number[];
+    stages: string[];
+    audiences: string[];
+  };
+  deliverables: Array<{
+    index: number;
+    week_number: number;
+    channel: string;
+    audience_segment: string;
+    stage: string;
+    suggested_content_preview: string;
+    status: string;
+  }>;
 }
 
 interface SSELogEntry {
@@ -319,6 +345,16 @@ export default function CampaignDetailPage() {
     tone: "",
   });
   const [savingAudience, setSavingAudience] = useState(false);
+
+  // Prompt & Import state
+  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
+  const [generatingPrompt, setGeneratingPrompt] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [importJson, setImportJson] = useState("");
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [importErrors, setImportErrors] = useState<Array<{ field: string; message: string }>>([]);
+  const [importing, setImporting] = useState(false);
+  const [committing, setCommitting] = useState(false);
 
   // Add channel deliverable state
   const [showAddChannel, setShowAddChannel] = useState(false);
@@ -675,6 +711,93 @@ export default function CampaignDetailPage() {
       toast({ title: "Error", description: "Failed to add deliverable." });
     } finally {
       setAddingChannel(false);
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // Prompt & Import handlers
+  // -------------------------------------------------------------------------
+
+  const handleGeneratePrompt = async () => {
+    setGeneratingPrompt(true);
+    setGeneratedPrompt(null);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/generate-prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || "Failed to generate prompt");
+      }
+      const data = await res.json();
+      setGeneratedPrompt(data.prompt);
+      toast({ title: "Prompt generated", description: `Version ${data.version} — ${data.stats.documents} docs, ~${data.stats.words.toLocaleString()} words` });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to generate prompt" });
+    } finally {
+      setGeneratingPrompt(false);
+    }
+  };
+
+  const handleCopyPrompt = async () => {
+    if (!generatedPrompt) return;
+    try {
+      await navigator.clipboard.writeText(generatedPrompt);
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+      toast({ title: "Copied", description: "Prompt copied to clipboard" });
+    } catch {
+      toast({ title: "Error", description: "Failed to copy to clipboard" });
+    }
+  };
+
+  const handleValidateImport = async () => {
+    setImporting(true);
+    setImportPreview(null);
+    setImportErrors([]);
+    try {
+      const parsed = JSON.parse(importJson);
+      const res = await fetch(`/api/campaigns/${campaignId}/import?preview=true`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ json: parsed }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.valid === false) {
+        setImportErrors(data.errors || [{ field: "root", message: data.error || "Validation failed" }]);
+      } else {
+        setImportPreview(data);
+      }
+    } catch (err) {
+      setImportErrors([{ field: "root", message: err instanceof Error ? err.message : "Invalid JSON" }]);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleCommitImport = async () => {
+    setCommitting(true);
+    try {
+      const parsed = JSON.parse(importJson);
+      const res = await fetch(`/api/campaigns/${campaignId}/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ json: parsed }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Import failed");
+      }
+      toast({ title: "Import complete", description: `${data.deliverables_created} deliverables imported` });
+      setImportJson("");
+      setImportPreview(null);
+      setImportErrors([]);
+      await loadCampaign();
+    } catch (err) {
+      toast({ title: "Import failed", description: err instanceof Error ? err.message : "Unknown error" });
+    } finally {
+      setCommitting(false);
     }
   };
 
@@ -1870,6 +1993,215 @@ export default function CampaignDetailPage() {
             </CardContent>
           </Card>
         )}
+      </section>
+
+      <Separator className="mb-8" />
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Prompt & Import */}
+      {/* ----------------------------------------------------------------- */}
+      <section className="mb-10">
+        <h2 className="font-display text-xl mb-4">Prompt & Import</h2>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Left Column — Generate Prompt */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Generate Prompt</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Build a prompt from your campaign metadata, documents, and strategy. Copy it into Claude App to generate your campaign calendar.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={handleGeneratePrompt}
+                disabled={generatingPrompt || includedDocs.length === 0}
+                className="w-full"
+              >
+                {generatingPrompt ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {generatingPrompt ? "Generating..." : "Generate Prompt"}
+              </Button>
+
+              {includedDocs.length === 0 && (
+                <p className="text-xs text-center text-muted-foreground">
+                  Include at least one document above to generate a prompt.
+                </p>
+              )}
+
+              {generatedPrompt && (
+                <>
+                  <div className="relative">
+                    <pre className="max-h-[400px] overflow-y-auto rounded-md border bg-muted/50 p-4 text-xs leading-relaxed whitespace-pre-wrap font-mono">
+                      {generatedPrompt}
+                    </pre>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={handleCopyPrompt}
+                    >
+                      {promptCopied ? (
+                        <ClipboardCheck className="h-3.5 w-3.5 text-green-600" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                      {promptCopied ? "Copied" : "Copy"}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    Copy this prompt into Claude App (with campaign blueprints) to generate the import JSON.
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Right Column — Import JSON */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Import JSON</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Paste the JSON output from Claude App to import deliverables into your campaign calendar.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <textarea
+                className="flex min-h-[160px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder='Paste JSON here...\n{\n  "campaign_type": "new_research",\n  "channels_used": [...],\n  "deliverables": [...]\n}'
+                value={importJson}
+                onChange={(e) => {
+                  setImportJson(e.target.value);
+                  // Clear preview/errors when user edits
+                  if (importPreview) setImportPreview(null);
+                  if (importErrors.length > 0) setImportErrors([]);
+                }}
+                disabled={importing || committing}
+                rows={8}
+              />
+
+              <Button
+                onClick={handleValidateImport}
+                disabled={importing || committing || !importJson.trim()}
+                variant="outline"
+                className="w-full"
+              >
+                {importing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {importing ? "Validating..." : "Validate & Preview"}
+              </Button>
+
+              {/* Validation Errors */}
+              {importErrors.length > 0 && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+                  <p className="text-xs font-medium text-destructive flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Validation Failed
+                  </p>
+                  <ul className="text-xs text-destructive/90 space-y-0.5 ml-5 list-disc">
+                    {importErrors.map((err, i) => (
+                      <li key={i}>
+                        <span className="font-mono text-[10px]">{err.field}</span>: {err.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Import Preview */}
+              {importPreview && (
+                <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <p className="text-sm font-medium">
+                      Valid JSON — {importPreview.summary.total_deliverables} deliverables
+                    </p>
+                  </div>
+
+                  {/* Summary badges */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {importPreview.summary.channels.map((ch) => (
+                      <Badge key={ch} variant="secondary" className="text-[10px]">
+                        {getChannelLabel(ch)}
+                      </Badge>
+                    ))}
+                    <span className="text-muted-foreground text-[10px] px-1">·</span>
+                    {importPreview.summary.stages.map((s) => (
+                      <Badge key={s} variant="outline" className="text-[10px]">
+                        {CAMPAIGN_STAGES.find((st) => st.value === s)?.label || s}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  {/* Week-grouped preview */}
+                  <div className="max-h-[300px] overflow-y-auto space-y-3">
+                    {Array.from(new Set(importPreview.deliverables.map((d) => d.week_number)))
+                      .sort((a, b) => a - b)
+                      .map((week) => {
+                        const weekDeliverables = importPreview.deliverables.filter(
+                          (d) => d.week_number === week
+                        );
+                        const stage = weekDeliverables[0]?.stage || "";
+                        return (
+                          <div key={week}>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">
+                              Week {week}{" "}
+                              <span className="font-normal">
+                                ({CAMPAIGN_STAGES.find((s) => s.value === stage)?.label || stage})
+                              </span>
+                            </p>
+                            <div className="space-y-1">
+                              {weekDeliverables.map((del) => (
+                                <div
+                                  key={del.index}
+                                  className="flex items-start gap-2 text-[11px] py-1 px-2 rounded bg-background border"
+                                >
+                                  <span className="font-medium min-w-[70px]">
+                                    {getChannelLabel(del.channel)}
+                                  </span>
+                                  <span className="text-muted-foreground min-w-[80px]">
+                                    {getAudienceLabel(del.audience_segment)}
+                                  </span>
+                                  <span className="text-muted-foreground truncate flex-1">
+                                    {del.suggested_content_preview}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {/* Confirm Import button */}
+                  <Button
+                    onClick={handleCommitImport}
+                    disabled={committing}
+                    className="w-full"
+                  >
+                    {committing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                    {committing
+                      ? "Importing..."
+                      : `Confirm Import — ${importPreview.summary.total_deliverables} deliverables`}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    This will replace all existing deliverables for this campaign.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       <Separator className="mb-8" />
