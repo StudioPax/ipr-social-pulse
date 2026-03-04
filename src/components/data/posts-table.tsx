@@ -330,14 +330,32 @@ function matchesFilters(
 function ExpandedRowDetail({
   post,
   analysis,
+  onSingleAnalysis,
+  analyzing,
 }: {
   post: Post;
   analysis: PostAnalysis | undefined;
+  onSingleAnalysis?: (postId: string) => void;
+  analyzing?: boolean;
 }) {
   if (!analysis) {
     return (
-      <div className="px-4 py-3 text-sm text-muted-foreground italic">
-        No analysis data available. Run an analysis to see details.
+      <div className="px-4 py-4 space-y-2">
+        <p className="text-sm text-muted-foreground italic">
+          No analysis data available.
+        </p>
+        {onSingleAnalysis && (
+          <Button
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSingleAnalysis(post.id);
+            }}
+            disabled={analyzing}
+          >
+            {analyzing ? "Analyzing..." : "Analyze This Post"}
+          </Button>
+        )}
       </div>
     );
   }
@@ -594,9 +612,9 @@ function ExpandedRowDetail({
           </div>
         )}
 
-      {/* Post link */}
-      {post.content_url && (
-        <div className="pt-2 border-t">
+      {/* Post link + Re-analyze */}
+      <div className="pt-2 border-t flex items-center justify-between">
+        {post.content_url ? (
           <a
             href={post.content_url}
             target="_blank"
@@ -605,8 +623,24 @@ function ExpandedRowDetail({
           >
             View original post →
           </a>
-        </div>
-      )}
+        ) : (
+          <span />
+        )}
+        {onSingleAnalysis && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs text-muted-foreground h-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSingleAnalysis(post.id);
+            }}
+            disabled={analyzing}
+          >
+            {analyzing ? "Re-analyzing..." : "Re-analyze"}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -615,9 +649,13 @@ function ExpandedRowDetail({
 export function PostsTable({
   posts,
   analyses,
+  clientId,
+  onAnalysisUpdate,
 }: {
   posts: Post[];
   analyses?: Map<string, PostAnalysis>;
+  clientId?: string;
+  onAnalysisUpdate?: () => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "published_at", desc: true },
@@ -626,6 +664,40 @@ export function PostsTable({
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
+  const [analyzingPosts, setAnalyzingPosts] = useState<Set<string>>(new Set());
+
+  const handleSingleAnalysis = useCallback(
+    async (postId: string) => {
+      if (!clientId) return;
+
+      setAnalyzingPosts((prev) => new Set(prev).add(postId));
+
+      try {
+        const res = await fetch("/api/analyze/single", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id: clientId,
+            post_id: postId,
+            model: "claude",
+          }),
+        });
+
+        if (res.ok) {
+          onAnalysisUpdate?.();
+        }
+      } catch (err) {
+        console.error("Single analysis failed:", err);
+      } finally {
+        setAnalyzingPosts((prev) => {
+          const next = new Set(prev);
+          next.delete(postId);
+          return next;
+        });
+      }
+    },
+    [clientId, onAnalysisUpdate]
+  );
 
   const filterGroups = useMemo(
     () => buildFilterGroups(posts, analyses),
@@ -1046,6 +1118,8 @@ export function PostsTable({
                         <ExpandedRowDetail
                           post={row.original}
                           analysis={analyses?.get(row.original.id)}
+                          onSingleAnalysis={clientId ? handleSingleAnalysis : undefined}
+                          analyzing={analyzingPosts.has(row.original.id)}
                         />
                       </TableCell>
                     </TableRow>

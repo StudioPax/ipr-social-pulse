@@ -269,3 +269,24 @@ export function parseAnalysisResponse(raw: string): PostAnalysisResult[] {
     fw_rewrite_rec: String(r.fw_rewrite_rec || ""),
   }));
 }
+
+/** Convert a raw DB post row to the PostForAnalysis shape expected by LLM clients */
+export function toPostForAnalysis(post: {
+  id: string;
+  content_text: string | null;
+  platform: string;
+  published_at: string | null;
+  engagement_total: number | null;
+  hashtags: string[] | null;
+  content_url: string | null;
+}): PostForAnalysis {
+  return {
+    id: post.id,
+    content_text: post.content_text || "",
+    platform: post.platform,
+    published_at: post.published_at || "",
+    engagement_total: post.engagement_total || 0,
+    hashtags: post.hashtags || [],
+    content_url: post.content_url,
+  };
+}

@@ -175,7 +175,12 @@ export default function AnalyzePage() {
       )}
 
       {/* Posts Table */}
-      <PostsTable posts={posts} analyses={analyses} />
+      <PostsTable
+        posts={posts}
+        analyses={analyses}
+        clientId={clientId || undefined}
+        onAnalysisUpdate={loadData}
+      />
     </div>
   );
 }

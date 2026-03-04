@@ -11,7 +11,7 @@ import {
   type PostAnalysisResult,
 } from "@/lib/analysis-prompt";
 
-const MODEL = "gemini-3-pro-preview";
+const DEFAULT_MODEL = "gemini-3-pro-preview";
 
 export interface AnalysisResponse {
   results: PostAnalysisResult[];
@@ -23,11 +23,13 @@ export interface AnalysisResponse {
 /** Analyze a batch of posts using Gemini */
 export async function analyzeWithGemini(
   apiKey: string,
-  posts: PostForAnalysis[]
+  posts: PostForAnalysis[],
+  modelName?: string
 ): Promise<AnalysisResponse> {
+  const useModel = modelName || DEFAULT_MODEL;
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
-    model: MODEL,
+    model: useModel,
     systemInstruction: buildSystemPrompt(),
     generationConfig: {
       temperature: 0,
@@ -44,23 +46,25 @@ export async function analyzeWithGemini(
   return {
     results,
     raw: { text, candidates: response.candidates },
-    model: MODEL,
+    model: useModel,
     promptVersion: ANALYSIS_PROMPT_VERSION,
   };
 }
 
 /** Test Gemini API connectivity with a minimal request */
 export async function testGeminiConnection(
-  apiKey: string
+  apiKey: string,
+  modelName?: string
 ): Promise<{ success: boolean; message: string; latencyMs: number }> {
+  const useModel = modelName || DEFAULT_MODEL;
   const start = Date.now();
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: MODEL });
+    const model = genAI.getGenerativeModel({ model: useModel });
     await model.generateContent("Reply with just the word OK.");
     return {
       success: true,
-      message: `Connected to ${MODEL}`,
+      message: `Connected to ${useModel}`,
       latencyMs: Date.now() - start,
     };
   } catch (err) {

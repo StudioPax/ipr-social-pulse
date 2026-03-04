@@ -11,7 +11,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { analyzeWithClaude } from "@/lib/claude";
 import { analyzeWithGemini } from "@/lib/gemini";
-import type { PostForAnalysis } from "@/lib/analysis-prompt";
+import { toPostForAnalysis, type PostForAnalysis } from "@/lib/analysis-prompt";
 
 const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -89,6 +89,20 @@ export async function POST(request: NextRequest) {
 
   const apiKey = setting.setting_value;
 
+  // Look up saved model selection
+  const modelSettingKey =
+    model === "claude" ? "anthropic_model" : "gemini_model";
+  const { data: modelSetting } = await supabase
+    .from("client_settings")
+    .select("setting_value")
+    .eq("client_id", client_id)
+    .eq("setting_key", modelSettingKey)
+    .single();
+
+  const selectedModel =
+    modelSetting?.setting_value ||
+    (model === "claude" ? "claude-sonnet-4-20250514" : "gemini-3-pro-preview");
+
   // Get posts that need analysis
   const postsToAnalyze = await getPostsForAnalysis(client_id, run_type);
 
@@ -103,7 +117,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Create analysis run record
-  const modelVersion = model === "claude" ? "claude-sonnet-4" : "gemini-3-pro-preview";
+  const modelVersion = selectedModel;
   const { data: run, error: runError } = await supabase
     .from("analysis_runs")
     .insert({
@@ -161,8 +175,8 @@ export async function POST(request: NextRequest) {
         try {
           const analysisResult =
             model === "claude"
-              ? await analyzeWithClaude(apiKey, batch)
-              : await analyzeWithGemini(apiKey, batch);
+              ? await analyzeWithClaude(apiKey, batch, selectedModel)
+              : await analyzeWithGemini(apiKey, batch, selectedModel);
 
           const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
           send("success", `${batchLabel}: Response received in ${elapsed}s — ${analysisResult.results.length} result(s) parsed`);
@@ -484,26 +498,6 @@ async function getPostsForAnalysis(
     const age = now - new Date(analyzedAt).getTime();
     return age >= THIRTY_DAYS;
   }).map(toPostForAnalysis);
-}
-
-function toPostForAnalysis(post: {
-  id: string;
-  content_text: string | null;
-  platform: string;
-  published_at: string | null;
-  engagement_total: number | null;
-  hashtags: string[] | null;
-  content_url: string | null;
-}): PostForAnalysis {
-  return {
-    id: post.id,
-    content_text: post.content_text || "",
-    platform: post.platform,
-    published_at: post.published_at || "",
-    engagement_total: post.engagement_total || 0,
-    hashtags: post.hashtags || [],
-    content_url: post.content_url,
-  };
 }
 
 function chunkArray<T>(arr: T[], size: number): T[][] {

@@ -16,8 +16,13 @@ const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const VALID_KEY_TYPES = ["anthropic_api_key", "gemini_api_key"] as const;
-type KeyType = (typeof VALID_KEY_TYPES)[number];
+const VALID_SETTING_KEYS = [
+  "anthropic_api_key",
+  "gemini_api_key",
+  "anthropic_model",
+  "gemini_model",
+] as const;
+type SettingKey = (typeof VALID_SETTING_KEYS)[number];
 
 /** GET — Check which keys are configured */
 export async function GET(request: NextRequest) {
@@ -33,20 +38,22 @@ export async function GET(request: NextRequest) {
 
   const { data: settings } = await supabase
     .from("client_settings")
-    .select("setting_key")
+    .select("setting_key, setting_value")
     .eq("client_id", clientId)
-    .in("setting_key", [...VALID_KEY_TYPES]);
+    .in("setting_key", [...VALID_SETTING_KEYS]);
 
-  const configuredKeys = new Set(settings?.map((s) => s.setting_key) || []);
+  const settingsMap = new Map(
+    (settings || []).map((s) => [s.setting_key, s.setting_value])
+  );
 
   return NextResponse.json({
     claude: {
-      configured: configuredKeys.has("anthropic_api_key"),
-      model: "claude-sonnet-4",
+      configured: settingsMap.has("anthropic_api_key"),
+      model: settingsMap.get("anthropic_model") || "claude-sonnet-4-20250514",
     },
     gemini: {
-      configured: configuredKeys.has("gemini_api_key"),
-      model: "gemini-3-pro-preview",
+      configured: settingsMap.has("gemini_api_key"),
+      model: settingsMap.get("gemini_model") || "gemini-3-pro-preview",
     },
   });
 }
@@ -68,9 +75,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!VALID_KEY_TYPES.includes(key_type as KeyType)) {
+    if (!VALID_SETTING_KEYS.includes(key_type as SettingKey)) {
       return NextResponse.json(
-        { error: `Invalid key_type. Must be one of: ${VALID_KEY_TYPES.join(", ")}` },
+        { error: `Invalid key_type. Must be one of: ${VALID_SETTING_KEYS.join(", ")}` },
         { status: 400 }
       );
     }

@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Client {
   id: string;
@@ -54,6 +61,12 @@ export default function SettingsPage() {
   const [testingGemini, setTestingGemini] = useState(false);
   const [feedback, setFeedback] = useState<Record<string, { type: "success" | "error"; message: string }>>({});
 
+  // Model picker state
+  const [claudeModels, setClaudeModels] = useState<{ id: string; name: string }[]>([]);
+  const [geminiModels, setGeminiModels] = useState<{ id: string; name: string }[]>([]);
+  const [loadingClaudeModels, setLoadingClaudeModels] = useState(false);
+  const [loadingGeminiModels, setLoadingGeminiModels] = useState(false);
+
   const loadKeyStatus = useCallback(async (clientId: string) => {
     const res = await fetch(`/api/settings/keys?client_id=${clientId}`);
     if (res.ok) {
@@ -61,6 +74,45 @@ export default function SettingsPage() {
       setKeyStatus(data);
     }
   }, []);
+
+  const loadModels = useCallback(
+    async (vendor: "claude" | "gemini", clientId: string) => {
+      const setLoading =
+        vendor === "claude" ? setLoadingClaudeModels : setLoadingGeminiModels;
+      const setModels =
+        vendor === "claude" ? setClaudeModels : setGeminiModels;
+
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/settings/models?vendor=${vendor}&client_id=${clientId}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setModels(data.models || []);
+        }
+      } catch {
+        // Silently fail — user can still type model manually
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  async function handleModelChange(vendor: "claude" | "gemini", modelId: string) {
+    if (!client) return;
+    await fetch("/api/settings/keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: client.id,
+        key_type: vendor === "claude" ? "anthropic_model" : "gemini_model",
+        api_key: modelId,
+      }),
+    });
+    await loadKeyStatus(client.id);
+  }
 
   useEffect(() => {
     async function load() {
@@ -84,6 +136,13 @@ export default function SettingsPage() {
     }
     load();
   }, [loadKeyStatus]);
+
+  // Load available models when key status changes
+  useEffect(() => {
+    if (!client || !keyStatus) return;
+    if (keyStatus.claude.configured) loadModels("claude", client.id);
+    if (keyStatus.gemini.configured) loadModels("gemini", client.id);
+  }, [client, keyStatus?.claude.configured, keyStatus?.gemini.configured, loadModels]);
 
   async function handleSaveKey(model: "claude" | "gemini") {
     if (!client) return;
@@ -323,6 +382,35 @@ export default function SettingsPage() {
                 </Button>
               )}
             </div>
+            {keyStatus?.claude.configured && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Model</Label>
+                <Select
+                  value={keyStatus.claude.model}
+                  onValueChange={(val) => handleModelChange("claude", val)}
+                  disabled={loadingClaudeModels}
+                >
+                  <SelectTrigger className="text-xs font-mono h-9">
+                    <SelectValue placeholder={loadingClaudeModels ? "Loading models..." : "Select model..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {claudeModels.map((m) => (
+                      <SelectItem key={m.id} value={m.id} className="text-xs font-mono">
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                    {claudeModels.length === 0 && !loadingClaudeModels && (
+                      <SelectItem value={keyStatus.claude.model} className="text-xs font-mono">
+                        {keyStatus.claude.model}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {loadingClaudeModels && (
+                  <p className="text-[10px] text-muted-foreground">Loading available models...</p>
+                )}
+              </div>
+            )}
             {feedback.claude && (
               <p
                 className={`text-xs ${
@@ -409,6 +497,35 @@ export default function SettingsPage() {
                 </Button>
               )}
             </div>
+            {keyStatus?.gemini.configured && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Model</Label>
+                <Select
+                  value={keyStatus.gemini.model}
+                  onValueChange={(val) => handleModelChange("gemini", val)}
+                  disabled={loadingGeminiModels}
+                >
+                  <SelectTrigger className="text-xs font-mono h-9">
+                    <SelectValue placeholder={loadingGeminiModels ? "Loading models..." : "Select model..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {geminiModels.map((m) => (
+                      <SelectItem key={m.id} value={m.id} className="text-xs font-mono">
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                    {geminiModels.length === 0 && !loadingGeminiModels && (
+                      <SelectItem value={keyStatus.gemini.model} className="text-xs font-mono">
+                        {keyStatus.gemini.model}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {loadingGeminiModels && (
+                  <p className="text-[10px] text-muted-foreground">Loading available models...</p>
+                )}
+              </div>
+            )}
             {feedback.gemini && (
               <p
                 className={`text-xs ${
