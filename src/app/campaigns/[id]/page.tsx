@@ -2207,10 +2207,17 @@ export default function CampaignDetailPage() {
       <Separator className="mb-8" />
 
       {/* ----------------------------------------------------------------- */}
-      {/* Channel Plan Table */}
+      {/* Channel Plan Table — Week-Grouped Calendar View */}
       {/* ----------------------------------------------------------------- */}
       <section className="mb-10">
-        <h2 className="font-display text-xl mb-4">Channel Plan</h2>
+        <h2 className="font-display text-xl mb-4">
+          Channel Plan
+          {channels.length > 0 && (
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              {channels.length} deliverable{channels.length !== 1 ? "s" : ""}
+            </span>
+          )}
+        </h2>
 
         {channels.length === 0 ? (
           <Card>
@@ -2218,19 +2225,68 @@ export default function CampaignDetailPage() {
               <Hash className="h-8 w-8 mx-auto mb-2 opacity-40" />
               <p>
                 {strategyOutput
-                  ? "No channel plans created yet."
-                  : "Channel plans will be generated with the campaign strategy."}
+                  ? "No channel plans created yet. Use Prompt & Import above to generate deliverables."
+                  : "Channel plans will be generated with the campaign strategy, or via Prompt & Import."}
               </p>
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <Table>
+          <>
+            {/* Group channels by week_number */}
+            {(() => {
+              // Build week groups — null weeks go to "Unscheduled"
+              const weekMap = new Map<number | null, CampaignChannel[]>();
+              for (const ch of channels) {
+                const wk = ch.week_number;
+                if (!weekMap.has(wk)) weekMap.set(wk, []);
+                weekMap.get(wk)!.push(ch);
+              }
+              // Sort: numbered weeks first (ascending), null last
+              const weekKeys = Array.from(weekMap.keys()).sort((a, b) => {
+                if (a === null) return 1;
+                if (b === null) return -1;
+                return a - b;
+              });
+
+              return weekKeys.map((weekNum) => {
+                const weekChannels = weekMap.get(weekNum)!;
+                // Determine stage from the first channel in this week
+                const weekStage = weekChannels[0]?.stage || "rollout";
+                const stageLabel = CAMPAIGN_STAGES.find((s) => s.value === weekStage)?.label || weekStage;
+
+                return (
+                  <Card key={weekNum ?? "unscheduled"} className="mb-4">
+                    {/* Week header */}
+                    <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-sm font-medium">
+                        {weekNum != null ? `Week ${weekNum}` : "Unscheduled"}
+                      </h3>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px]",
+                          weekStage === "pre_launch"
+                            ? "bg-purple-100 text-purple-800"
+                            : weekStage === "sustain"
+                            ? "bg-green-100 text-green-800"
+                            : weekStage === "measure"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-blue-100 text-blue-800"
+                        )}
+                      >
+                        {stageLabel}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {weekChannels.length} item{weekChannels.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+          <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8" />
                   <TableHead>Channel</TableHead>
-                  <TableHead>Phase</TableHead>
+                  <TableHead>Stage</TableHead>
                   <TableHead>Audience</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Scheduled</TableHead>
@@ -2238,7 +2294,7 @@ export default function CampaignDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {channels.map((ch) => {
+                {weekChannels.map((ch) => {
                   const isExpanded = expandedChannels.has(ch.id);
                   const content = ch.edited_content || ch.suggested_content;
                   const isEditing = editingChannelId === ch.id;
@@ -2565,7 +2621,11 @@ export default function CampaignDetailPage() {
                 })}
               </TableBody>
             </Table>
-          </Card>
+                  </Card>
+                );
+              });
+            })()}
+          </>
         )}
 
         {/* Add Deliverable */}
