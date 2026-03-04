@@ -13,6 +13,7 @@ import {
   buildDateRangeValue,
   type DateRangeValue,
 } from "@/components/data/date-range-filter";
+import { PostsTable, type PostAnalysis } from "@/components/data/posts-table";
 import {
   BarChart,
   Bar,
@@ -28,24 +29,31 @@ import {
   Line,
   Legend,
 } from "recharts";
-import { CHART_COLORS, TOOLTIP_STYLE, PLATFORM_COLORS } from "@/lib/charts";
+import { CHART_COLORS, TOOLTIP_STYLE, PLATFORM_COLORS, PILLAR_COLORS } from "@/lib/charts";
 
 interface PostRow {
   id: string;
   platform: string;
+  post_id: string;
   content_text: string | null;
+  content_url: string | null;
   published_at: string | null;
   likes: number | null;
   reposts: number | null;
   comments: number | null;
   engagement_total: number | null;
+  hashtags: string[] | null;
   content_format: string | null;
+  authors: string[] | null;
   pillar_tag: string | null;
+  collected_at: string;
 }
 
 export default function DashboardPage() {
   const [posts, setPosts] = useState<PostRow[]>([]);
+  const [analyses, setAnalyses] = useState<Map<string, PostAnalysis>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRangeValue>(() =>
     buildDateRangeValue("last_3_months")
   );
@@ -63,18 +71,37 @@ export default function DashboardPage() {
       return;
     }
 
-    const { data } = await supabase
-      .from("posts")
-      .select(
-        "id, platform, content_text, published_at, likes, reposts, comments, engagement_total, content_format, pillar_tag"
-      )
-      .eq("client_id", client.id)
-      .gte("published_at", dateRange.startDate + "T00:00:00Z")
-      .lte("published_at", dateRange.endDate + "T23:59:59Z")
-      .order("published_at", { ascending: false })
-      .limit(1000);
+    setClientId(client.id);
 
-    setPosts(data || []);
+    const [postsResult, analysesResult] = await Promise.all([
+      supabase
+        .from("posts")
+        .select(
+          "id, platform, post_id, content_text, content_url, published_at, likes, reposts, comments, engagement_total, hashtags, content_format, authors, pillar_tag, collected_at"
+        )
+        .eq("client_id", client.id)
+        .gte("published_at", dateRange.startDate + "T00:00:00Z")
+        .lte("published_at", dateRange.endDate + "T23:59:59Z")
+        .order("published_at", { ascending: false })
+        .limit(1000),
+      supabase
+        .from("post_analyses")
+        .select(
+          "post_id, pillar_primary, pillar_secondary, pillar_confidence, pillar_rationale, sentiment_label, sentiment_score, sentiment_confidence, sentiment_rationale, performance_tier, recommended_action, policy_relevance, policy_relevance_rationale, content_type, audience_fit, nu_alignment_tags, research_title, research_url, research_authors, key_topics, summary, tier_rationale, fw_values_lead_score, fw_values_lead_eval, fw_causal_chain_score, fw_causal_chain_eval, fw_cultural_freight_score, fw_cultural_freight_eval, fw_episodic_thematic_score, fw_episodic_thematic_eval, fw_solutions_framing_score, fw_solutions_framing_eval, fw_overall_score, fw_rewrite_rec"
+        ),
+    ]);
+
+    const postList = postsResult.data || [];
+    setPosts(postList);
+
+    const analysisMap = new Map<string, PostAnalysis>();
+    if (analysesResult.data) {
+      for (const a of analysesResult.data) {
+        analysisMap.set(a.post_id, a);
+      }
+    }
+    setAnalyses(analysisMap);
+
     setLoading(false);
   }, [dateRange.startDate, dateRange.endDate]);
 
@@ -141,14 +168,24 @@ export default function DashboardPage() {
     }, {} as Record<string, number>)
   ).map(([name, value]) => ({ name, value }));
 
-  // Pillar distribution
-  const pillarData = Object.entries(
-    posts.reduce((acc, p) => {
-      const pillar = p.pillar_tag || "Untagged";
-      acc[pillar] = (acc[pillar] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>)
-  ).map(([name, value]) => ({ name, value }));
+  // Pillar distribution — analyzed posts only (from post_analyses)
+  const pillarData = (() => {
+    const counts: Record<string, number> = {};
+    analyses.forEach((a) => {
+      const pillar = a.pillar_primary || "Untagged";
+      counts[pillar] = (counts[pillar] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  })();
+
+  const analyzedCount = analyses.size;
+
+  // Top performing posts — sorted by engagement across all platforms
+  const topPosts = [...posts]
+    .sort((a, b) => (b.engagement_total || 0) - (a.engagement_total || 0))
+    .slice(0, 10);
 
   if (loading) {
     return (
@@ -356,35 +393,82 @@ export default function DashboardPage() {
           {/* Tab 2: NU Alignment */}
           <TabsContent value="alignment" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Pillar Distribution */}
+              {/* Pillar Distribution — Donut Chart */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
                     Posts by Policy Pillar
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      ({analyzedCount} analyzed)
+                    </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={pillarData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis type="number" tick={{ fontSize: 11 }} />
-                      <YAxis
-                        dataKey="name"
-                        type="category"
-                        tick={{ fontSize: 11 }}
-                        width={100}
-                      />
-                      <Tooltip {...TOOLTIP_STYLE} />
-                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                        {pillarData.map((entry, index) => (
-                          <Cell
-                            key={entry.name}
-                            fill={CHART_COLORS[index % CHART_COLORS.length]}
+                  {pillarData.length === 0 ? (
+                    <div className="flex items-center justify-center h-[280px]">
+                      <p className="text-sm text-muted-foreground text-center">
+                        No analyzed posts yet.<br />
+                        Run AI Analysis to see pillar distribution.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <ResponsiveContainer width="60%" height={280}>
+                        <PieChart>
+                          <Pie
+                            data={pillarData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={65}
+                            outerRadius={100}
+                            dataKey="value"
+                            paddingAngle={2}
+                            stroke="none"
+                          >
+                            {pillarData.map((entry) => (
+                              <Cell
+                                key={entry.name}
+                                fill={PILLAR_COLORS[entry.name] || CHART_COLORS[5]}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            content={({ active, payload }) => {
+                              if (!active || !payload?.length) return null;
+                              const d = payload[0].payload as { name: string; value: number };
+                              const pct = analyzedCount > 0 ? Math.round((d.value / analyzedCount) * 100) : 0;
+                              return (
+                                <div className="rounded-md border bg-popover px-3 py-2 shadow-md">
+                                  <p className="text-xs font-medium">{d.name}</p>
+                                  <p className="text-xs font-mono text-muted-foreground">
+                                    {d.value} posts ({pct}%)
+                                  </p>
+                                </div>
+                              );
+                            }}
                           />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      {/* Legend */}
+                      <div className="flex flex-col gap-2.5 min-w-[140px]">
+                        {pillarData.map((entry) => {
+                          const pct = analyzedCount > 0 ? Math.round((entry.value / analyzedCount) * 100) : 0;
+                          return (
+                            <div key={entry.name} className="flex items-center gap-2">
+                              <span
+                                className="inline-block w-3 h-3 rounded-sm shrink-0"
+                                style={{ backgroundColor: PILLAR_COLORS[entry.name] || CHART_COLORS[5] }}
+                              />
+                              <span className="text-xs">{entry.name}</span>
+                              <span className="text-xs font-mono text-muted-foreground ml-auto">
+                                {entry.value} ({pct}%)
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -394,15 +478,17 @@ export default function DashboardPage() {
                   <CardTitle className="text-base">Content Formats</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
+                  <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
                       <Pie
                         data={formatData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
+                        innerRadius={65}
+                        outerRadius={100}
                         dataKey="value"
+                        paddingAngle={2}
+                        stroke="none"
                         label={({ name, value }) => `${name} (${value})`}
                         labelLine={false}
                       >
@@ -419,76 +505,113 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </div>
-
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Run <span className="font-semibold">AI Analysis</span> on
-                  collected posts to see pillar alignment tags, sentiment
-                  scores, and NU alignment metrics.
-                </p>
-                <Badge variant="outline" className="mt-2">
-                  Phase 2 — Claude API Integration
-                </Badge>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Tab 3: Opportunity Map */}
           <TabsContent value="opportunity" className="space-y-6">
+            {/* Top Performing Posts */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  Top Posts by Engagement
+                  Top Performing Posts
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    by engagement across all platforms
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {[...posts]
-                    .sort(
-                      (a, b) =>
-                        (b.engagement_total || 0) -
-                        (a.engagement_total || 0)
-                    )
-                    .slice(0, 5)
-                    .map((post, i) => (
+                  {topPosts.map((post, i) => {
+                    const analysis = analyses.get(post.id);
+                    return (
                       <div
                         key={post.id}
-                        className="flex items-start gap-3 rounded-md border p-3"
+                        className="flex items-start gap-3 rounded-md border p-3 hover:bg-muted/30 transition-colors"
                       >
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold font-mono text-primary">
                           {i + 1}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge
                               variant="secondary"
                               className="text-[10px]"
                             >
                               {post.platform}
                             </Badge>
+                            {post.pillar_tag && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px]"
+                              >
+                                {post.pillar_tag}
+                              </Badge>
+                            )}
+                            {analysis?.sentiment_label && (
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] ${
+                                  analysis.sentiment_label === "positive"
+                                    ? "border-emerald-300 text-emerald-700"
+                                    : analysis.sentiment_label === "negative"
+                                      ? "border-red-300 text-red-700"
+                                      : "border-gray-300 text-gray-600"
+                                }`}
+                              >
+                                {analysis.sentiment_label}
+                              </Badge>
+                            )}
+                            {analysis?.performance_tier && (
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-mono ${
+                                  analysis.performance_tier === "T1_PolicyEngine"
+                                    ? "border-purple-300 text-purple-700"
+                                    : analysis.performance_tier === "T2_Visibility"
+                                      ? "border-blue-300 text-blue-700"
+                                      : "border-gray-300 text-gray-600"
+                                }`}
+                              >
+                                {analysis.performance_tier.split("_")[0]}
+                              </Badge>
+                            )}
                             <span className="text-xs text-muted-foreground">
                               {post.published_at
-                                ? new Date(
-                                    post.published_at
-                                  ).toLocaleDateString()
+                                ? new Date(post.published_at).toLocaleDateString(undefined, {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })
                                 : "—"}
                             </span>
                           </div>
                           <p className="text-sm line-clamp-2">
-                            {post.content_text || "No text available"}
+                            {analysis?.summary || post.content_text || "No text available"}
                           </p>
+                          {post.content_url && (
+                            <a
+                              href={post.content_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-accent hover:underline mt-0.5 inline-block"
+                            >
+                              View post
+                            </a>
+                          )}
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-mono text-sm font-bold">
+                          <p className="font-mono text-sm font-bold tabular-nums">
                             {(post.engagement_total || 0).toLocaleString()}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            engagement
-                          </p>
+                          <div className="text-[10px] text-muted-foreground font-mono tabular-nums">
+                            <span>{post.likes || 0}L</span>{" "}
+                            <span>{post.reposts || 0}R</span>{" "}
+                            <span>{post.comments || 0}C</span>
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
                   {posts.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-8">
                       No posts to display. Run a collection first.
@@ -498,15 +621,23 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
+            {/* All Posts — Analyze Module View */}
             <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Performance tiering and recommended actions will appear here
-                  after running AI analysis.
-                </p>
-                <Badge variant="outline" className="mt-2">
-                  Phase 2 — Performance Tiers & Action Flags
-                </Badge>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  All Posts
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    {posts.length} posts in range
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PostsTable
+                  posts={posts}
+                  analyses={analyses}
+                  clientId={clientId || undefined}
+                  onAnalysisUpdate={loadData}
+                />
               </CardContent>
             </Card>
           </TabsContent>
