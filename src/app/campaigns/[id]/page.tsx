@@ -350,6 +350,8 @@ export default function CampaignDetailPage() {
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
   const [generatingPrompt, setGeneratingPrompt] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
+  const [promptLog, setPromptLog] = useState<SSELogEntry[]>([]);
+  const [promptLogExpanded, setPromptLogExpanded] = useState(false);
   const [importJson, setImportJson] = useState("");
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importErrors, setImportErrors] = useState<Array<{ field: string; message: string }>>([]);
@@ -721,18 +723,56 @@ export default function CampaignDetailPage() {
   const handleGeneratePrompt = async () => {
     setGeneratingPrompt(true);
     setGeneratedPrompt(null);
+    setPromptLog([]);
+    setPromptLogExpanded(false);
+
     try {
       const res = await fetch(`/api/campaigns/${campaignId}/generate-prompt`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        throw new Error(errData?.error || "Failed to generate prompt");
+
+      if (!res.body) throw new Error("No response stream");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const entry: SSELogEntry = JSON.parse(line.slice(6));
+              entry.timestamp = new Date().toISOString();
+              setPromptLog((prev) => [...prev, entry]);
+
+              if (entry.level === "done") {
+                const prompt = entry.prompt as string;
+                const version = entry.version as string;
+                const stats = entry.stats as { documents: number; words: number; has_strategy: boolean };
+                setGeneratedPrompt(prompt);
+                toast({
+                  title: "Prompt generated",
+                  description: `Version ${version} — ${stats.documents} docs, ~${stats.words.toLocaleString()} words`,
+                });
+              }
+
+              if (entry.level === "error") {
+                toast({ title: "Error", description: entry.message });
+              }
+            } catch {
+              // Ignore JSON parse errors
+            }
+          }
+        }
       }
-      const data = await res.json();
-      setGeneratedPrompt(data.prompt);
-      toast({ title: "Prompt generated", description: `Version ${data.version} — ${data.stats.documents} docs, ~${data.stats.words.toLocaleString()} words` });
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to generate prompt" });
     } finally {
@@ -2030,6 +2070,97 @@ export default function CampaignDetailPage() {
                 <p className="text-xs text-center text-muted-foreground">
                   Include at least one document above to generate a prompt.
                 </p>
+              )}
+
+              {/* SSE log bar for prompt generation */}
+              {(generatingPrompt || promptLog.length > 0) && (
+                <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                  {/* Header: icon + title + duration + toggle */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {generatingPrompt ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : promptLog.some((e) => e.level === "error") ? (
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                      ) : (
+                        <Check className="h-4 w-4 text-emerald-600" />
+                      )}
+                      <span className="text-sm font-medium">Prompt Generation</span>
+                      {!generatingPrompt && promptLog.length > 0 && (
+                        <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                          {(() => {
+                            const first = promptLog[0]?.timestamp;
+                            const last = promptLog[promptLog.length - 1]?.timestamp;
+                            if (first && last) {
+                              const ms = new Date(last).getTime() - new Date(first).getTime();
+                              return ms < 1000 ? `${ms}ms` : `${Math.round(ms / 1000)}s`;
+                            }
+                            return "";
+                          })()}
+                        </Badge>
+                      )}
+                    </div>
+                    {promptLog.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPromptLogExpanded(!promptLogExpanded)}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {promptLogExpanded ? (
+                          <>
+                            Hide log <ChevronUp className="h-3 w-3" />
+                          </>
+                        ) : (
+                          <>
+                            Show log ({promptLog.length}) <ChevronDown className="h-3 w-3" />
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Indeterminate progress bar */}
+                  {generatingPrompt && (
+                    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div className="absolute inset-y-0 w-1/3 rounded-full bg-primary animate-indeterminate" />
+                    </div>
+                  )}
+
+                  {/* Latest status (collapsed) */}
+                  {!promptLogExpanded && promptLog.length > 0 && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {promptLog[promptLog.length - 1]?.message}
+                    </p>
+                  )}
+
+                  {/* Expandable log entries */}
+                  {promptLogExpanded && (
+                    <div className="bg-muted/50 rounded-md p-3 max-h-60 overflow-y-auto font-mono text-xs space-y-1">
+                      {promptLog.map((entry, i) => {
+                        const ts = entry.timestamp ? new Date(entry.timestamp) : null;
+                        const timeStr = ts
+                          ? ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+                          : "";
+                        return (
+                          <div
+                            key={i}
+                            className={cn(
+                              "leading-relaxed",
+                              entry.level === "error" && "text-destructive",
+                              entry.level === "warn" && "text-amber-600",
+                              entry.level === "success" && "text-emerald-600",
+                              entry.level === "done" && "text-emerald-700 font-semibold",
+                              entry.level === "info" && "text-muted-foreground"
+                            )}
+                          >
+                            <span className="opacity-40">{timeStr}</span>{" "}
+                            <span className="opacity-50">[{entry.level}]</span> {entry.message}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
 
               {generatedPrompt && (
