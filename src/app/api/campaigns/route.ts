@@ -92,7 +92,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { client_id, title, research_authors, research_doi, research_url, publication_date, embargo_until, target_audiences, created_by } = body;
+    const {
+      client_id, title, research_authors, research_doi, research_url,
+      publication_date, embargo_until, target_audiences, created_by,
+      campaign_type, duration_weeks, channels_used,
+    } = body;
 
     if (!client_id || !title) {
       return NextResponse.json({ error: "client_id and title required" }, { status: 400 });
@@ -103,6 +107,9 @@ export async function POST(request: NextRequest) {
       .insert({
         client_id,
         title,
+        campaign_type: campaign_type || "new_research",
+        duration_weeks: duration_weeks || null,
+        channels_used: channels_used || [],
         research_authors: research_authors || [],
         research_doi: research_doi || null,
         research_url: research_url || null,
