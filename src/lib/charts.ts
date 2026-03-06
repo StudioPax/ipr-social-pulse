@@ -47,3 +47,28 @@ export const PLATFORM_COLORS: Record<string, string> = {
   instagram: "#E4405F",
   bluesky: "#0085FF",
 };
+
+/** Sentiment colors — green/cyan/red/amber */
+export const SENTIMENT_COLORS: Record<string, string> = {
+  positive: CHART_COLORS[2],   // green
+  neutral: CHART_COLORS[5],    // cyan
+  negative: CHART_COLORS[4],   // pink/red
+  mixed: CHART_COLORS[1],      // amber
+};
+
+/** Performance tier colors — purple/blue/amber/orange */
+export const TIER_COLORS: Record<string, string> = {
+  T1_PolicyEngine: CHART_COLORS[3],   // purple
+  T2_Visibility: CHART_COLORS[0],     // blue
+  T3_Niche: CHART_COLORS[1],          // amber
+  T4_Underperformer: CHART_COLORS[7], // orange
+};
+
+/** Recommended action colors */
+export const ACTION_COLORS: Record<string, string> = {
+  amplify: CHART_COLORS[2],       // green
+  template: CHART_COLORS[0],      // blue
+  promote_niche: CHART_COLORS[3], // purple
+  diagnose: CHART_COLORS[1],      // amber
+  archive: CHART_COLORS[7],       // orange
+};

@@ -1,10 +1,36 @@
 // @component CampaignPromptTab — Prompt generation + JSON import
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Check,
@@ -15,7 +41,13 @@ import {
   ClipboardCheck,
   Upload,
 } from "lucide-react";
-import { CAMPAIGN_STAGES } from "@/lib/tokens";
+import {
+  CAMPAIGN_STAGES,
+  CAMPAIGN_TYPES,
+  CAMPAIGN_DURATIONS,
+  CAMPAIGN_CHANNELS,
+  TARGET_AUDIENCES,
+} from "@/lib/tokens";
 import type {
   Campaign,
   CampaignDocument,
@@ -31,6 +63,7 @@ interface CampaignPromptTabProps {
   campaign: Campaign;
   includedDocs: CampaignDocument[];
   strategyOutput: StrategyOutput | null;
+  existingDeliverableCount: number;
   onRefresh: () => Promise<void>;
 }
 
@@ -38,9 +71,18 @@ export function CampaignPromptTab({
   campaignId,
   campaign,
   includedDocs,
+  existingDeliverableCount,
   onRefresh,
 }: CampaignPromptTabProps) {
   const { toast } = useToast();
+
+  // Config dialog state
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [configCampaignType, setConfigCampaignType] = useState(campaign.campaign_type || "new_research");
+  const [configDurationWeeks, setConfigDurationWeeks] = useState(campaign.duration_weeks || 6);
+  const [configChannels, setConfigChannels] = useState<string[]>(campaign.channels_used || []);
+  const [configAudiences, setConfigAudiences] = useState<string[]>(campaign.target_audiences || []);
+  const [savingConfig, setSavingConfig] = useState(false);
 
   // Prompt state
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
@@ -55,6 +97,60 @@ export function CampaignPromptTab({
   const [importErrors, setImportErrors] = useState<Array<{ field: string; message: string }>>([]);
   const [importing, setImporting] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
+
+  const toggleConfigChannel = useCallback((channel: string) => {
+    setConfigChannels((prev) =>
+      prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel]
+    );
+  }, []);
+
+  const toggleConfigAudience = useCallback((audience: string) => {
+    setConfigAudiences((prev) =>
+      prev.includes(audience) ? prev.filter((a) => a !== audience) : [...prev, audience]
+    );
+  }, []);
+
+  const selectedTypeInfo = CAMPAIGN_TYPES.find((t) => t.value === configCampaignType);
+
+  const handleOpenConfigDialog = () => {
+    // Reset form to current campaign values each time
+    setConfigCampaignType(campaign.campaign_type || "new_research");
+    setConfigDurationWeeks(campaign.duration_weeks || 6);
+    setConfigChannels(campaign.channels_used || []);
+    setConfigAudiences(campaign.target_audiences || []);
+    setShowConfigDialog(true);
+  };
+
+  const handleConfigGenerate = async () => {
+    setSavingConfig(true);
+    try {
+      // Save updated campaign fields
+      const res = await fetch(`/api/campaigns/${campaignId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaign_type: configCampaignType,
+          duration_weeks: configDurationWeeks,
+          channels_used: configChannels,
+          target_audiences: configAudiences,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Failed to save settings" }));
+        throw new Error(err.error || "Failed to save settings");
+      }
+      // Refresh parent so campaign data is up to date
+      await onRefresh();
+      setShowConfigDialog(false);
+      // Now generate the prompt
+      handleGeneratePrompt();
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save settings" });
+    } finally {
+      setSavingConfig(false);
+    }
+  };
 
   // ── Handlers ──────────────────────────────────────────────────────────
 
@@ -198,20 +294,20 @@ export function CampaignPromptTab({
 
   return (
     <section>
-      <h2 className="font-display text-xl mb-4">Prompt & Import</h2>
+      <h2 className="font-display text-xl mb-4">Generate & Import</h2>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left Column — Generate Prompt */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Generate Prompt</CardTitle>
+            <CardTitle className="text-base">Generate Campaign Prompt</CardTitle>
             <p className="text-xs text-muted-foreground">
               Build a prompt from your campaign metadata, documents, and strategy. Copy it into Claude App to generate your campaign calendar.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button
-              onClick={handleGeneratePrompt}
+              onClick={handleOpenConfigDialog}
               disabled={generatingPrompt || includedDocs.length === 0}
               className="w-full"
             >
@@ -220,7 +316,7 @@ export function CampaignPromptTab({
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              {generatingPrompt ? "Generating..." : "Generate Prompt"}
+              {generatingPrompt ? "Generating..." : "Generate Campaign Prompt"}
             </Button>
 
             {includedDocs.length === 0 && (
@@ -384,7 +480,13 @@ export function CampaignPromptTab({
                 </div>
 
                 <Button
-                  onClick={handleCommitImport}
+                  onClick={() => {
+                    if (existingDeliverableCount > 0) {
+                      setShowImportConfirm(true);
+                    } else {
+                      handleCommitImport();
+                    }
+                  }}
                   disabled={committing}
                   className="w-full"
                 >
@@ -397,14 +499,172 @@ export function CampaignPromptTab({
                     ? "Importing..."
                     : `Confirm Import — ${importPreview.summary.total_deliverables} deliverables`}
                 </Button>
-                <p className="text-[11px] text-muted-foreground text-center">
-                  This will replace all existing deliverables for this campaign.
-                </p>
+                {existingDeliverableCount > 0 && (
+                  <p className="text-[11px] text-amber-600 text-center">
+                    This will replace all {existingDeliverableCount} existing deliverables for this campaign.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Import confirmation dialog when existing deliverables exist */}
+      <AlertDialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace existing deliverables?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all {existingDeliverableCount} existing
+              deliverables from the Campaign Plan and replace them with{" "}
+              {importPreview?.summary.total_deliverables ?? 0} new ones from this import.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowImportConfirm(false);
+                handleCommitImport();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete & Import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Campaign config dialog — shown before prompt generation */}
+      <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Campaign Prompt Settings</DialogTitle>
+            <DialogDescription>
+              Confirm or update campaign parameters before generating the prompt.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            {/* Campaign Type + Duration */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="config-campaign-type">Campaign Type</Label>
+                <Select
+                  value={configCampaignType}
+                  onValueChange={setConfigCampaignType}
+                  disabled={savingConfig}
+                >
+                  <SelectTrigger id="config-campaign-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAMPAIGN_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="config-duration">Duration</Label>
+                <Select
+                  value={String(configDurationWeeks)}
+                  onValueChange={(v) => setConfigDurationWeeks(Number(v))}
+                  disabled={savingConfig}
+                >
+                  <SelectTrigger id="config-duration">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CAMPAIGN_DURATIONS.map((d) => (
+                      <SelectItem key={d.value} value={String(d.value)}>
+                        {d.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {selectedTypeInfo && (
+              <p className="text-[11px] text-muted-foreground -mt-2">
+                {selectedTypeInfo.description}
+              </p>
+            )}
+
+            {/* Channels */}
+            <div className="grid gap-2">
+              <Label>Channels</Label>
+              <div className="flex flex-wrap gap-2">
+                {CAMPAIGN_CHANNELS.map((ch) => (
+                  <button
+                    key={ch.value}
+                    type="button"
+                    onClick={() => toggleConfigChannel(ch.value)}
+                    disabled={savingConfig}
+                    className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                      configChannels.includes(ch.value)
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted-foreground border-border hover:bg-muted"
+                    }`}
+                  >
+                    {ch.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Select channels for this campaign. Leave empty for auto-mix.
+              </p>
+            </div>
+
+            {/* Target Audiences */}
+            <div className="grid gap-2">
+              <Label>Target Audiences</Label>
+              <div className="flex flex-wrap gap-2">
+                {TARGET_AUDIENCES.map((aud) => (
+                  <button
+                    key={aud.value}
+                    type="button"
+                    onClick={() => toggleConfigAudience(aud.value)}
+                    disabled={savingConfig}
+                    className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                      configAudiences.includes(aud.value)
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted-foreground border-border hover:bg-muted"
+                    }`}
+                  >
+                    {aud.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowConfigDialog(false)}
+              disabled={savingConfig}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfigGenerate}
+              disabled={savingConfig}
+            >
+              {savingConfig ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {savingConfig ? "Saving..." : "Generate Prompt"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

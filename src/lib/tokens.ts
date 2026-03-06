@@ -162,3 +162,20 @@ export const DOCUMENT_ROLES = [
 ] as const;
 
 export type DocumentRole = (typeof DOCUMENT_ROLES)[number]["value"];
+
+/** Human-readable tier labels */
+export const TIER_LABELS: Record<string, string> = {
+  T1_PolicyEngine: "T1 — Policy Engine",
+  T2_Visibility: "T2 — Visibility",
+  T3_Niche: "T3 — Niche",
+  T4_Underperformer: "T4 — Underperformer",
+};
+
+/** Human-readable action labels */
+export const ACTION_LABELS: Record<string, string> = {
+  amplify: "Amplify",
+  template: "Template",
+  promote_niche: "Promote Niche",
+  diagnose: "Diagnose",
+  archive: "Archive",
+};

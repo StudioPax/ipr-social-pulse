@@ -1,8 +1,9 @@
-// @page Collect — Social media data collection UI
-// App Spec Module 1 — Post collection with date range, platform select, content types
+// @page Import Content — Pull social media posts from configured platforms
+// Formerly /collect — now nested under /content as part of the content hub
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ArrowLeft } from "lucide-react";
 
 // ── Constants ──────────────────────────────────────────────────────────
 
@@ -79,7 +81,7 @@ interface LogEntry {
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export default function CollectPage() {
+export default function ImportContentPage() {
   // Client state
   const [clientId, setClientId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -252,7 +254,15 @@ export default function CollectPage() {
 
   return (
     <div className="p-6 max-w-content">
-      <h2 className="font-display text-2xl">Collect Posts</h2>
+      <Link
+        href="/content"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Content
+      </Link>
+
+      <h2 className="font-display text-2xl">Import Content</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Pull social media posts from configured platforms into the database.
       </p>
@@ -380,7 +390,7 @@ export default function CollectPage() {
                 </div>
               </div>
 
-              {/* Date Inputs (always visible, editable in custom mode, read-only otherwise) */}
+              {/* Date Inputs */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="date-start" className="text-xs text-muted-foreground">

@@ -243,7 +243,7 @@ export function CampaignChannelsTab({
   return (
     <section>
       <h2 className="font-display text-xl mb-4">
-        Channel Plan
+        Campaign Plan
         {channels.length > 0 && (
           <span className="text-sm font-normal text-muted-foreground ml-2">
             {channels.length} deliverable{channels.length !== 1 ? "s" : ""}
@@ -257,8 +257,8 @@ export function CampaignChannelsTab({
             <Hash className="h-8 w-8 mx-auto mb-2 opacity-40" />
             <p>
               {strategyOutput
-                ? "No channel plans created yet. Use Prompt & Import above to generate deliverables."
-                : "Channel plans will be generated with the campaign strategy, or via Prompt & Import."}
+                ? "No campaign plans created yet. Use Generate & Import above to generate deliverables."
+                : "Campaign plans will be generated with the campaign strategy, or via Generate & Import."}
             </p>
           </CardContent>
         </Card>

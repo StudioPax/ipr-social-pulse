@@ -23,42 +23,41 @@ export default function Home() {
           <span className="text-2xl">📊</span>
           <span className="font-semibold">Dashboard</span>
           <span className="text-xs text-muted-foreground">
-            Leadership, NU Alignment, Opportunity views
+            Ecosystem health, pillar distribution, engagement trends
           </span>
         </Link>
 
         <Link
-          href="/collect"
+          href="/content"
           className="flex flex-col gap-2 rounded-lg border border-border bg-card p-6 transition-colors hover:bg-surface-hover"
         >
-          <span className="text-2xl">📥</span>
-          <span className="font-semibold">Collect</span>
+          <span className="text-2xl">📄</span>
+          <span className="font-semibold">Content</span>
           <span className="text-xs text-muted-foreground">
-            Pull posts from LinkedIn, Twitter, Facebook, Instagram, Bluesky
+            Browse, import, analyze, and manage your content
           </span>
         </Link>
 
         <Link
-          href="/analyze"
+          href="/campaigns"
           className="flex flex-col gap-2 rounded-lg border border-border bg-card p-6 transition-colors hover:bg-surface-hover"
         >
-          <span className="text-2xl">🔬</span>
-          <span className="font-semibold">Analyze</span>
+          <span className="text-2xl">📋</span>
+          <span className="font-semibold">Campaigns</span>
           <span className="text-xs text-muted-foreground">
-            AI pillar tagging, sentiment, tiering via Claude
+            AI strategy, content calendars, multi-channel plans
           </span>
         </Link>
 
-        <Link
-          href="/outreach"
-          className="flex flex-col gap-2 rounded-lg border border-border bg-card p-6 transition-colors hover:bg-surface-hover"
+        <div
+          className="flex flex-col gap-2 rounded-lg border border-border bg-card p-6 opacity-50 cursor-default"
         >
           <span className="text-2xl">📡</span>
           <span className="font-semibold">Outreach</span>
           <span className="text-xs text-muted-foreground">
-            Amplifier tracking, influencer tiering, action flags
+            Amplifier tracking, influencer tiering — coming soon
           </span>
-        </Link>
+        </div>
       </div>
     </div>
   );

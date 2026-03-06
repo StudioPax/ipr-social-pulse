@@ -6,12 +6,11 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/collect", label: "Collect", icon: "📥" },
-  { href: "/analyze", label: "Analyze", icon: "🔬" },
-  { href: "/outreach", label: "Outreach", icon: "📡" },
-  { href: "/campaigns", label: "Campaigns", icon: "📋" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
+  { href: "/dashboard", label: "Dashboard", icon: "📊", comingSoon: false },
+  { href: "/content", label: "Content", icon: "📄", comingSoon: false },
+  { href: "/campaigns", label: "Campaigns", icon: "📋", comingSoon: false },
+  { href: "/outreach", label: "Outreach", icon: "📡", comingSoon: true },
+  { href: "/settings", label: "Settings", icon: "⚙️", comingSoon: false },
 ] as const;
 
 export function SideNav() {
@@ -22,6 +21,22 @@ export function SideNav() {
       <div className="flex flex-col gap-1">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname?.startsWith(item.href);
+
+          if (item.comingSoon) {
+            return (
+              <span
+                key={item.href}
+                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground/50 cursor-default"
+              >
+                <span className="text-base opacity-50">{item.icon}</span>
+                {item.label}
+                <span className="ml-auto text-[10px] font-medium uppercase tracking-wider opacity-60">
+                  Soon
+                </span>
+              </span>
+            );
+          }
+
           return (
             <Link
               key={item.href}

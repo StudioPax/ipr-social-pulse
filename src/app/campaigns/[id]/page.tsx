@@ -32,8 +32,8 @@ import { CampaignChannelsTab } from "@/components/campaign-detail/campaign-chann
 const TABS = [
   { value: "context", label: "Context", icon: FileText },
   { value: "strategy", label: "Strategy", icon: Sparkles },
-  { value: "prompt", label: "Prompt & Import", icon: Upload },
-  { value: "channels", label: "Channel Plan", icon: Calendar },
+  { value: "prompt", label: "Generate & Import", icon: Upload },
+  { value: "channels", label: "Campaign Plan", icon: Calendar },
 ] as const;
 
 type TabValue = (typeof TABS)[number]["value"];
@@ -255,6 +255,7 @@ function CampaignDetailInner() {
             campaign={campaign}
             includedDocs={includedDocs}
             strategyOutput={strategyOutput}
+            existingDeliverableCount={channels.length}
             onRefresh={loadCampaign}
           />
         </TabsContent>

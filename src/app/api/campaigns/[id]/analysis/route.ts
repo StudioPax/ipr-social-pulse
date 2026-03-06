@@ -15,6 +15,8 @@ const supabase = createClient<Database>(
 );
 
 const ALLOWED_FIELDS = new Set([
+  "research_summary",
+  "key_messages",
   "audience_narratives",
   "fw_values_lead",
   "fw_causal_chain",
