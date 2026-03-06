@@ -10,6 +10,7 @@ import {
   type PostForAnalysis,
   type PostAnalysisResult,
 } from "@/lib/analysis-prompt";
+import { loadPrompt } from "@/lib/prompt-loader";
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
@@ -24,16 +25,22 @@ export interface AnalysisResponse {
 export async function analyzeWithClaude(
   apiKey: string,
   posts: PostForAnalysis[],
-  model?: string
+  model?: string,
+  clientId?: string
 ): Promise<AnalysisResponse> {
   const useModel = model || DEFAULT_MODEL;
   const client = new Anthropic({ apiKey });
 
+  // Load prompt from DB if clientId provided, otherwise use hardcoded default
+  const prompt = clientId
+    ? await loadPrompt(clientId, "post-analysis")
+    : { systemPrompt: buildSystemPrompt(), temperature: 0, maxTokens: 16384, version: ANALYSIS_PROMPT_VERSION, source: "fallback" as const };
+
   const response = await client.messages.create({
     model: useModel,
-    max_tokens: 16384,
-    temperature: 0,
-    system: buildSystemPrompt(),
+    max_tokens: prompt.maxTokens,
+    temperature: prompt.temperature,
+    system: prompt.systemPrompt,
     messages: [
       {
         role: "user",
@@ -62,7 +69,7 @@ export async function analyzeWithClaude(
     results,
     raw: response,
     model: useModel,
-    promptVersion: ANALYSIS_PROMPT_VERSION,
+    promptVersion: prompt.version,
   };
 }
 

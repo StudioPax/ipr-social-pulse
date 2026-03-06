@@ -175,8 +175,8 @@ export async function POST(request: NextRequest) {
         try {
           const analysisResult =
             model === "claude"
-              ? await analyzeWithClaude(apiKey, batch, selectedModel)
-              : await analyzeWithGemini(apiKey, batch, selectedModel);
+              ? await analyzeWithClaude(apiKey, batch, selectedModel, client_id)
+              : await analyzeWithGemini(apiKey, batch, selectedModel, client_id);
 
           const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
           send("success", `${batchLabel}: Response received in ${elapsed}s — ${analysisResult.results.length} result(s) parsed`);
