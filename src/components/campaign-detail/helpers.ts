@@ -58,3 +58,20 @@ export const getChannelCharLimit = (channel: string): number | null => {
   const found = CAMPAIGN_CHANNELS.find((c) => c.value === channel);
   return found ? found.charLimit : null;
 };
+
+/** Build copy-ready text for a campaign deliverable */
+export const buildDeliverableCopyText = (ch: {
+  edited_content?: string | null;
+  suggested_content?: string | null;
+  hashtags?: string[] | null;
+  mentions?: string[] | null;
+}): string => {
+  const content = ch.edited_content || ch.suggested_content || "";
+  const hashtags = (ch.hashtags || []).map((t) => `#${t}`).join(" ");
+  const mentions = (ch.mentions || []).map((m) => `@${m}`).join(" ");
+
+  let text = content;
+  if (hashtags) text += "\n\n" + hashtags;
+  if (mentions) text += "\n" + mentions;
+  return text.trim();
+};

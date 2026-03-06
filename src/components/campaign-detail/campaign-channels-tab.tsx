@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { CopyButton } from "@/components/ui/copy-button";
 import {
   Plus,
   ChevronDown,
@@ -49,6 +50,7 @@ import {
   getChannelLabel,
   getAudienceLabel,
   getChannelCharLimit,
+  buildDeliverableCopyText,
 } from "./helpers";
 
 interface CampaignChannelsTabProps {
@@ -425,18 +427,27 @@ export function CampaignChannelsTab({
                                       <p className="text-sm whitespace-pre-wrap leading-relaxed flex-1">
                                         {content}
                                       </p>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          startEditChannel(ch);
-                                        }}
-                                      >
-                                        <Pencil className="h-3.5 w-3.5 mr-1" />
-                                        Edit
-                                      </Button>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <CopyButton
+                                          text={buildDeliverableCopyText(ch)}
+                                          label="Copy"
+                                          toastDescription={`${getChannelLabel(ch.channel)} content copied`}
+                                          charCount={buildDeliverableCopyText(ch).length}
+                                          charLimit={getChannelCharLimit(ch.channel)}
+                                        />
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-muted-foreground hover:text-foreground"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            startEditChannel(ch);
+                                          }}
+                                        >
+                                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                                          Edit
+                                        </Button>
+                                      </div>
                                     </div>
                                     {ch.hashtags && ch.hashtags.length > 0 && (
                                       <div className="flex flex-wrap gap-1">

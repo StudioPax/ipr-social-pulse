@@ -3,6 +3,7 @@ import { DM_Sans, DM_Serif_Display, JetBrains_Mono, Epilogue } from "next/font/g
 import "./globals.css";
 import { TopBar } from "@/components/layout/top-bar";
 import { SideNav } from "@/components/layout/side-nav";
+import { Toaster } from "@/components/ui/toaster";
 
 /* UI Spec §6 — Typography */
 const dmSans = DM_Sans({
@@ -56,6 +57,7 @@ export default function RootLayout({
             {children}
           </main>
         </div>
+        <Toaster />
       </body>
     </html>
   );

@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { CopyButton } from "@/components/ui/copy-button";
 import {
   Check,
   Loader2,
@@ -669,15 +670,24 @@ export function CampaignStrategyTab({
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">Research Summary</CardTitle>
                     {!editingResearchSummary && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-foreground"
-                        onClick={startEditResearchSummary}
-                      >
-                        <Pencil className="h-3.5 w-3.5 mr-1" />
-                        Edit
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {strategyOutput.research_summary && (
+                          <CopyButton
+                            text={strategyOutput.research_summary}
+                            label="Copy"
+                            toastDescription="Research summary copied"
+                          />
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={startEditResearchSummary}
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardHeader>
@@ -729,15 +739,22 @@ export function CampaignStrategyTab({
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Key Messages</CardTitle>
                   {!editingKeyMessages && strategyOutput.key_messages && strategyOutput.key_messages.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={startEditKeyMessages}
-                    >
-                      <Pencil className="h-3.5 w-3.5 mr-1" />
-                      Edit
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <CopyButton
+                        text={strategyOutput.key_messages.map((m, i) => `${i + 1}. ${m}`).join("\n")}
+                        label="Copy"
+                        toastDescription="Key messages copied"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={startEditKeyMessages}
+                      >
+                        <Pencil className="h-3.5 w-3.5 mr-1" />
+                        Edit
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -829,15 +846,25 @@ export function CampaignStrategyTab({
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Meridian Messaging Guidance</CardTitle>
                   {!editingMessaging && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={startEditMessaging}
-                    >
-                      <Pencil className="h-3.5 w-3.5 mr-1" />
-                      Edit
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <CopyButton
+                        text={MESSAGING_FIELDS.map(
+                          (f) =>
+                            `${f.label.toUpperCase()}: ${(strategyOutput[f.key as keyof StrategyOutput] as string) || "--"}`
+                        ).join("\n\n")}
+                        label="Copy"
+                        toastDescription="Messaging guidance copied"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={startEditMessaging}
+                      >
+                        <Pencil className="h-3.5 w-3.5 mr-1" />
+                        Edit
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -1109,7 +1136,18 @@ export function CampaignStrategyTab({
                               </div>
                             ) : (
                               <div className="mt-3">
-                                <div className="flex justify-end mb-2">
+                                <div className="flex justify-end gap-1 mb-2">
+                                  <CopyButton
+                                    text={[
+                                      `HOOK: ${narrative.hook || "--"}`,
+                                      `FRAMING: ${narrative.framing || "--"}`,
+                                      `KEY STAT: ${narrative.key_stat || "--"}`,
+                                      `CALL TO ACTION: ${narrative.call_to_action || "--"}`,
+                                      `TONE: ${narrative.tone || "--"}`,
+                                    ].join("\n\n")}
+                                    label="Copy"
+                                    toastDescription={`${getAudienceLabel(aud)} narrative copied`}
+                                  />
                                   <Button
                                     variant="ghost"
                                     size="sm"
