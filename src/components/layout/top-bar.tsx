@@ -35,7 +35,7 @@ export function TopBar({ clientName = "Northwestern IPR" }: TopBarProps) {
           <SheetHeader className="px-3 pb-4">
             <SheetTitle className="flex items-center gap-2">
               <MeridianLogo variant="mark" className="h-6 w-6 text-primary" />
-              <span className="font-logo font-bold text-[15px] tracking-[0.08em]">MERIDIAN</span>
+              <span className="font-logo font-bold text-xl tracking-[0.08em]">Meridian</span>
             </SheetTitle>
           </SheetHeader>
           <NavLinks onNavigate={() => setOpen(false)} />
@@ -46,7 +46,7 @@ export function TopBar({ clientName = "Northwestern IPR" }: TopBarProps) {
       <div className="flex items-center gap-3">
         <MeridianLogo variant="mark" className="h-8 w-8 text-primary" />
         <div className="flex items-baseline gap-2">
-          <span className="font-logo font-bold text-xl tracking-[0.08em] text-foreground relative top-[2px]">MERIDIAN</span>
+          <span className="font-logo font-bold text-xl tracking-[0.08em] text-foreground relative top-[2px]">Meridian</span>
           <span className="text-xs text-muted-foreground font-medium hidden sm:inline">/</span>
           <span className="text-sm text-muted-foreground hidden sm:inline">{clientName}</span>
         </div>
