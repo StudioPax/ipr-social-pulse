@@ -17,6 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PromptEditor } from "@/components/settings/prompt-editor";
+
+/** Set false to hide Prompt Templates section from client demos */
+const SHOW_PROMPT_MANAGEMENT = true;
 
 interface Client {
   id: string;
@@ -551,6 +555,18 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Prompt Templates — owner-only */}
+      {SHOW_PROMPT_MANAGEMENT && client && (
+        <>
+          <Separator className="my-8" />
+          <h3 className="text-lg font-semibold">Prompt Templates</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            View and edit AI prompt templates. Changes take effect on the next AI operation.
+          </p>
+          <PromptEditor clientId={client.id} />
+        </>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   type PostForAnalysis,
   type PostAnalysisResult,
 } from "@/lib/analysis-prompt";
+import { loadPrompt } from "@/lib/prompt-loader";
 
 const DEFAULT_MODEL = "gemini-3-pro-preview";
 
@@ -24,15 +25,22 @@ export interface AnalysisResponse {
 export async function analyzeWithGemini(
   apiKey: string,
   posts: PostForAnalysis[],
-  modelName?: string
+  modelName?: string,
+  clientId?: string
 ): Promise<AnalysisResponse> {
   const useModel = modelName || DEFAULT_MODEL;
   const genAI = new GoogleGenerativeAI(apiKey);
+
+  // Load prompt from DB if clientId provided, otherwise use hardcoded default
+  const prompt = clientId
+    ? await loadPrompt(clientId, "post-analysis")
+    : { systemPrompt: buildSystemPrompt(), temperature: 0, maxTokens: 16384, version: ANALYSIS_PROMPT_VERSION, source: "fallback" as const };
+
   const model = genAI.getGenerativeModel({
     model: useModel,
-    systemInstruction: buildSystemPrompt(),
+    systemInstruction: prompt.systemPrompt,
     generationConfig: {
-      temperature: 0,
+      temperature: prompt.temperature,
       responseMimeType: "application/json",
     },
   });
@@ -47,7 +55,7 @@ export async function analyzeWithGemini(
     results,
     raw: { text, candidates: response.candidates },
     model: useModel,
-    promptVersion: ANALYSIS_PROMPT_VERSION,
+    promptVersion: prompt.version,
   };
 }
 

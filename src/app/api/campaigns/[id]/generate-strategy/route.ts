@@ -11,12 +11,11 @@ import type { Database, Json } from "@/types/database";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
-  STRATEGY_SYSTEM_PROMPT,
   buildStrategyUserMessage,
-  CAMPAIGN_STRATEGY_PROMPT_VERSION,
   type StrategyOutput,
   type StrategyDocument,
 } from "@/lib/campaign-prompt";
+import { loadPrompt } from "@/lib/prompt-loader";
 
 const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,6 +76,19 @@ export async function POST(
 
   const apiKey = setting.setting_value;
 
+  // Look up saved model selection
+  const modelSettingKey = model === "claude" ? "anthropic_model" : "gemini_model";
+  const { data: modelSetting } = await supabase
+    .from("client_settings")
+    .select("setting_value")
+    .eq("client_id", client_id)
+    .eq("setting_key", modelSettingKey)
+    .single();
+
+  const selectedModel =
+    modelSetting?.setting_value ||
+    (model === "claude" ? "claude-sonnet-4-20250514" : "gemini-3-pro-preview");
+
   // Get campaign + included documents
   const [campaignRes, docsRes] = await Promise.all([
     supabase.from("campaigns").select("*").eq("id", campaignId).single(),
@@ -112,9 +124,9 @@ export async function POST(
       }
 
       try {
-        const modelVersion = model === "claude" ? "claude-sonnet-4-20250514" : "gemini-3-pro-preview";
+        const prompt = await loadPrompt(client_id, "campaign-strategy");
         send("info", `Generating Strategy for "${campaign.title}"`);
-        send("info", `Model: ${model} (${modelVersion}), prompt ${CAMPAIGN_STRATEGY_PROMPT_VERSION}`);
+        send("info", `Model: ${model} (${selectedModel}), prompt ${prompt.version} [${prompt.source}]`);
         send("info", `Documents: ${docs.length} included`);
 
         // List documents by role
@@ -165,10 +177,10 @@ export async function POST(
         if (model === "claude") {
           const client = new Anthropic({ apiKey });
           const response = await client.messages.create({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 8192,
-            temperature: 0,
-            system: STRATEGY_SYSTEM_PROMPT,
+            model: selectedModel,
+            max_tokens: prompt.maxTokens,
+            temperature: prompt.temperature,
+            system: prompt.systemPrompt,
             messages: [{ role: "user", content: userMessage }],
           });
           const textBlock = response.content.find((b) => b.type === "text");
@@ -179,9 +191,9 @@ export async function POST(
         } else {
           const genAI = new GoogleGenerativeAI(apiKey);
           const geminiModel = genAI.getGenerativeModel({
-            model: "gemini-3-pro-preview",
-            systemInstruction: STRATEGY_SYSTEM_PROMPT,
-            generationConfig: { temperature: 0, responseMimeType: "application/json" },
+            model: selectedModel,
+            systemInstruction: prompt.systemPrompt,
+            generationConfig: { temperature: prompt.temperature, responseMimeType: "application/json" },
           });
           const result = await geminiModel.generateContent(userMessage);
           responseText = result.response.text();
@@ -226,8 +238,8 @@ export async function POST(
           nu_alignment_mapping: strategyOutput.nu_alignment_mapping || "",
           cross_promotion_opps: strategyOutput.cross_promotion_opps || [],
           llm_response_raw: strategyOutput as unknown as Json,
-          model_version: modelVersion,
-          prompt_version: CAMPAIGN_STRATEGY_PROMPT_VERSION,
+          model_version: selectedModel,
+          prompt_version: prompt.version,
           analyzed_at: new Date().toISOString(),
         };
 

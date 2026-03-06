@@ -415,6 +415,53 @@ export type Database = {
           },
         ]
       }
+      dashboard_insights: {
+        Row: {
+          analyzed_count: number
+          client_id: string
+          created_at: string
+          date_range_end: string
+          date_range_start: string
+          generated_at: string
+          id: string
+          insights: Json
+          model_version: string | null
+          post_count: number
+        }
+        Insert: {
+          analyzed_count?: number
+          client_id: string
+          created_at?: string
+          date_range_end: string
+          date_range_start: string
+          generated_at?: string
+          id?: string
+          insights?: Json
+          model_version?: string | null
+          post_count?: number
+        }
+        Update: {
+          analyzed_count?: number
+          client_id?: string
+          created_at?: string
+          date_range_end?: string
+          date_range_start?: string
+          generated_at?: string
+          id?: string
+          insights?: Json
+          model_version?: string | null
+          post_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_insights_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           client_name: string
@@ -805,6 +852,62 @@ export type Database = {
             columns: ["collection_run_id"]
             isOneToOne: false
             referencedRelation: "collection_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_templates: {
+        Row: {
+          id: string
+          client_id: string
+          slug: string
+          name: string
+          description: string | null
+          version: string
+          system_prompt: string
+          user_message_template: string | null
+          temperature: number
+          max_tokens: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          slug: string
+          name: string
+          description?: string | null
+          version?: string
+          system_prompt: string
+          user_message_template?: string | null
+          temperature?: number
+          max_tokens?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          slug?: string
+          name?: string
+          description?: string | null
+          version?: string
+          system_prompt?: string
+          user_message_template?: string | null
+          temperature?: number
+          max_tokens?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_templates_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
