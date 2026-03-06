@@ -42,7 +42,7 @@ Always read these before making architectural decisions or building new features
 
 ## Database
 
-12 tables in Supabase, all with RLS enabled and anon-key policies:
+13 tables in Supabase, all with RLS enabled and anon-key policies:
 - `clients` — multi-tenant client profiles
 - `social_accounts` — platform connections per client
 - `client_settings` — per-client settings (API keys, preferences). UNIQUE on `(client_id, setting_key)`
@@ -55,6 +55,7 @@ Always read these before making architectural decisions or building new features
 - `campaign_documents` — research papers, notes, AI briefs, supporting docs per campaign
 - `campaign_channels` — channel-specific content plans per campaign
 - `campaign_analyses` — AI strategy output per campaign (UNIQUE on `campaign_id`)
+- `prompt_templates` — DB-backed AI prompt templates per client. UNIQUE on `(client_id, slug, version)`
 
 **Default client:** Northwestern IPR (`8734831a-16e0-4cbf-8335-7322855b07b1`)
 **Bluesky handle:** `ipratnu.bsky.social`
@@ -82,8 +83,9 @@ Always read these before making architectural decisions or building new features
 See `README.md` for the full feature status table. In summary:
 - **Phase 1 (MVP) — Complete:** app shell, Bluesky connector, collection UI with log window, dashboard with charts, analyze page with data table, settings page
 - **Phase 2 (AI Analysis) — Complete:** Claude + Gemini API integration, pillar tagging, sentiment, tiering, analysis panel with SSE streaming log, filter bar, expandable rows
-- **Phase 2.5 (Dashboard Enhancements) — Complete:** date range filter with presets + custom range, server-side Supabase date filtering, Posts Over Time chart with full-range fill + post snippet tooltips, hashtags in expanded row detail, improved expand arrows
-- **Phase 3A (Content Campaigns) — In Progress:** 4 DB tables, 8+ API routes (CRUD + AI generation), campaign list/detail pages, AI Brief + Strategy generation with SSE streaming, campaign-prompt.ts (brief-v1.0, strategy-v1.0)
+- **Phase 2.5 (Dashboard Enhancements) — Complete:** date range filter with presets + custom range, server-side Supabase date filtering, Posts Over Time chart with full-range fill + post snippet tooltips, hashtags in expanded row detail, improved expand arrows, dashboard decomposed into sub-components, AI insights panel
+- **Phase 3A (Content Campaigns) — Complete:** 4 DB tables, 10+ API routes (CRUD + AI generation + import), campaign list/detail pages with tabbed interface, AI Brief + Strategy + Audience Narrative generation with SSE streaming, campaign-prompt.ts (brief-v1.0, strategy-v1.0), content import page
+- **Phase 3A.1 (Prompt Management) — Complete:** `prompt_templates` table, `prompt-loader.ts` (DB → fallback), prompt editor UI in Settings (owner-mode gated), all 7 consumer files wired to `loadPrompt()`, 5 prompt slugs seeded
 - **Phase 3B (Multi-Platform + Outreach)** is next
 
 ### Terminology: "Save project status" / "Save status"

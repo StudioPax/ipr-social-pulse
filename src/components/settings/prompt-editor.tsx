@@ -9,7 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface PromptVersion {
+  id: string;
+  version: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  system_prompt: string;
+  temperature: number;
+  max_tokens: number;
+}
 
 interface PromptTemplate {
   id: string;
@@ -54,6 +66,12 @@ export function PromptEditor({ clientId }: PromptEditorProps) {
   const [draftTokens, setDraftTokens] = useState(4096);
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Version history
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [versions, setVersions] = useState<PromptVersion[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+
   const loadPrompts = useCallback(async () => {
     setLoading(true);
     try {
@@ -75,9 +93,42 @@ export function PromptEditor({ clientId }: PromptEditorProps) {
     }
   }, [clientId, selectedSlug]);
 
+  const loadVersionHistory = useCallback(
+    async (slug: string) => {
+      setLoadingHistory(true);
+      try {
+        const res = await fetch(
+          `/api/settings/prompts?client_id=${clientId}&slug=${slug}&history=true`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setVersions(data.versions || []);
+        }
+      } catch {
+        // Silently fail
+      } finally {
+        setLoadingHistory(false);
+      }
+    },
+    [clientId]
+  );
+
   useEffect(() => {
     loadPrompts();
   }, [loadPrompts]);
+
+  // Load history when expanded
+  useEffect(() => {
+    if (historyExpanded && selectedSlug) {
+      loadVersionHistory(selectedSlug);
+    }
+  }, [historyExpanded, selectedSlug, loadVersionHistory]);
+
+  // Reset history state when switching prompts
+  useEffect(() => {
+    setHistoryExpanded(false);
+    setVersions([]);
+  }, [selectedSlug]);
 
   // When selected prompt changes, populate editor
   const selectedPrompt = prompts.find((p) => p.slug === selectedSlug);
@@ -154,10 +205,16 @@ export function PromptEditor({ clientId }: PromptEditorProps) {
       });
 
       if (res.ok) {
-        setFeedback({ type: "success", message: "Prompt saved" });
+        const responseData = await res.json();
+        setFeedback({
+          type: "success",
+          message: `Saved as ${responseData.prompt?.version || "new version"}`,
+        });
         setHasChanges(false);
-        // Refresh the list to pick up new updated_at
         await loadPrompts();
+        if (historyExpanded && selectedPrompt) {
+          await loadVersionHistory(selectedPrompt.slug);
+        }
       } else {
         const data = await res.json();
         setFeedback({
@@ -169,6 +226,46 @@ export function PromptEditor({ clientId }: PromptEditorProps) {
       setFeedback({ type: "error", message: "Network error" });
     } finally {
       setSaving(false);
+      setTimeout(() => setFeedback(null), 4000);
+    }
+  }
+
+  async function handleRestore(versionId: string) {
+    if (!selectedPrompt) return;
+    setRestoring(true);
+    setFeedback(null);
+
+    try {
+      const res = await fetch("/api/settings/prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: clientId,
+          slug: selectedPrompt.slug,
+          restore_version_id: versionId,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setFeedback({
+          type: "success",
+          message: `Restored as ${data.prompt?.version}`,
+        });
+        setHasChanges(false);
+        await loadPrompts();
+        await loadVersionHistory(selectedPrompt.slug);
+      } else {
+        const data = await res.json();
+        setFeedback({
+          type: "error",
+          message: data.error || "Failed to restore",
+        });
+      }
+    } catch {
+      setFeedback({ type: "error", message: "Network error" });
+    } finally {
+      setRestoring(false);
       setTimeout(() => setFeedback(null), 4000);
     }
   }
@@ -350,6 +447,87 @@ export function PromptEditor({ clientId }: PromptEditorProps) {
                   {saving ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
+            </div>
+
+            {/* Version History — collapsible */}
+            <div className="border-t pt-3">
+              <button
+                type="button"
+                onClick={() => setHistoryExpanded(!historyExpanded)}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {historyExpanded ? (
+                  <>
+                    <ChevronUp className="h-3 w-3" />
+                    Hide version history
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3 w-3" />
+                    Version history
+                  </>
+                )}
+              </button>
+
+              {historyExpanded && (
+                <div className="mt-3 rounded-md border bg-muted/30 max-h-64 overflow-y-auto">
+                  {loadingHistory ? (
+                    <div className="p-4 text-center text-xs text-muted-foreground">
+                      Loading versions...
+                    </div>
+                  ) : versions.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-muted-foreground">
+                      No version history found.
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {versions.map((v) => (
+                        <div
+                          key={v.id}
+                          className={cn(
+                            "flex items-center justify-between px-3 py-2.5",
+                            v.is_active && "bg-accent/5"
+                          )}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Badge
+                              variant={v.is_active ? "default" : "outline"}
+                              className="text-[10px] font-mono shrink-0"
+                            >
+                              {v.version}
+                            </Badge>
+                            <span className="text-[11px] text-muted-foreground truncate">
+                              {new Date(v.created_at).toLocaleString([], {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                            {v.is_active && (
+                              <Badge variant="secondary" className="text-[9px]">
+                                active
+                              </Badge>
+                            )}
+                          </div>
+                          {!v.is_active && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs shrink-0"
+                              onClick={() => handleRestore(v.id)}
+                              disabled={restoring || saving}
+                            >
+                              {restoring ? "Restoring..." : "Restore"}
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Feedback */}

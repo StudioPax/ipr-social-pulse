@@ -4,8 +4,8 @@
 
 **Client:** Northwestern IPR
 **Built by:** Studio Pax
-**Status:** Phase 3A (Content Campaigns) — In Progress
-**Last updated:** 2026-03-03
+**Status:** Phase 3A Complete, Phase 3B Next
+**Last updated:** 2026-03-05
 
 ---
 
@@ -71,7 +71,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<set in Vercel>
 
 ---
 
-## Database Schema (12 Tables)
+## Database Schema (13 Tables)
 
 All tables have RLS enabled with anon-key policies for SELECT, INSERT, and UPDATE.
 
@@ -209,6 +209,19 @@ campaign_analyses (NEW — Module 7)
 ├── key_messages (text[])
 ├── model_used, prompt_version (text)
 ├── generated_at (timestamptz)
+
+prompt_templates (NEW — Prompt Management)
+├── id (uuid, PK)
+├── client_id → clients.id
+├── slug (text) — post-analysis, dashboard-insights, campaign-brief, campaign-strategy, audience-narrative
+├── name (text), description (text)
+├── version (text)
+├── system_prompt (text)
+├── user_message_template (text, reference only)
+├── temperature (real), max_tokens (int)
+├── is_active (bool)
+├── created_at / updated_at (timestamptz)
+├── UNIQUE(client_id, slug, version)
 ```
 
 ### Seed Data
@@ -226,41 +239,74 @@ src/
 │   ├── layout.tsx              # Root layout: TopBar + SideNav + main
 │   ├── page.tsx                # Home: logo + 4 feature cards
 │   ├── globals.css             # Tailwind + IPR design tokens
-│   ├── dashboard/page.tsx      # KPI cards + date range filter + 3 tabbed Recharts views
+│   ├── dashboard/page.tsx      # KPI cards + date range filter + 3 tabbed Recharts views + AI insights
 │   ├── collect/page.tsx        # Collection UI + log window + date presets
 │   ├── analyze/page.tsx        # Posts table + stats + AI analysis panel
 │   ├── campaigns/
 │   │   ├── page.tsx            # Campaign list: card grid + filters + create dialog
-│   │   └── [id]/page.tsx       # Campaign detail: documents, strategy, channel plan
-│   ├── outreach/page.tsx       # Placeholder (Phase 3)
-│   ├── settings/page.tsx       # Client profile + social accounts + AI model keys
+│   │   └── [id]/page.tsx       # Campaign detail: tabbed interface (context, prompt, strategy, channels)
+│   ├── content/
+│   │   ├── page.tsx            # Content hub placeholder
+│   │   └── import/page.tsx     # Content import page
+│   ├── outreach/page.tsx       # Placeholder (Phase 3B)
+│   ├── settings/page.tsx       # Client profile + social accounts + AI model keys + prompt editor
 │   └── api/
 │       ├── collect/route.ts    # POST: run collection, GET: run history
-│       ├── analyze/route.ts    # POST: run AI analysis (SSE stream), GET: prescan/progress/history
+│       ├── analyze/
+│       │   ├── route.ts        # POST: run AI analysis (SSE stream), GET: prescan/progress/history
+│       │   └── single/route.ts # POST: analyze single post
+│       ├── dashboard/
+│       │   └── insights/route.ts # POST: generate AI dashboard insights
 │       ├── campaigns/
 │       │   ├── route.ts              # GET: list campaigns, POST: create campaign
 │       │   └── [id]/
 │       │       ├── route.ts          # GET/PATCH/DELETE campaign
+│       │       ├── analysis/route.ts         # GET campaign analysis
 │       │       ├── documents/route.ts        # GET/POST documents
 │       │       ├── documents/[docId]/route.ts # GET/PATCH/DELETE document
 │       │       ├── channels/route.ts         # GET/POST channels
 │       │       ├── channels/[channelId]/route.ts # PATCH/DELETE channel
+│       │       ├── import/route.ts           # POST: import content
 │       │       ├── generate-brief/route.ts   # POST: AI Brief generation (SSE)
-│       │       └── generate-strategy/route.ts # POST: Strategy generation (SSE)
+│       │       ├── generate-strategy/route.ts # POST: Strategy generation (SSE)
+│       │       ├── generate-audience/route.ts # POST: Audience narrative generation (SSE)
+│       │       └── generate-prompt/route.ts   # POST: Prompt generation (SSE)
 │       └── settings/
-│           └── keys/route.ts   # GET: key status, POST: save key, PUT: test connection
+│           ├── keys/route.ts   # GET: key status, POST: save key, PUT: test connection
+│           ├── models/route.ts # GET/POST: model selection
+│           └── prompts/route.ts # GET/PUT: prompt template management
 ├── components/
 │   ├── icons/
 │   │   └── meridian-logo.tsx   # SVG logo (mark + full variants)
 │   ├── layout/
 │   │   ├── top-bar.tsx         # App header with logo
 │   │   └── side-nav.tsx        # Sidebar navigation
+│   ├── campaign-detail/        # Campaign detail page sub-components
+│   │   ├── campaign-context-tab.tsx   # Context/documents tab
+│   │   ├── campaign-prompt-tab.tsx    # AI prompt & import tab
+│   │   ├── campaign-strategy-tab.tsx  # Strategy results tab
+│   │   ├── campaign-channels-tab.tsx  # Channel plan tab
+│   │   ├── sse-generation-log.tsx     # Shared SSE streaming log component
+│   │   ├── helpers.ts                 # Shared helper functions
+│   │   └── types.ts                   # Shared TypeScript types
+│   ├── dashboard/              # Dashboard page sub-components
+│   │   ├── kpi-cards.tsx       # KPI summary cards
+│   │   ├── leadership-tab.tsx  # Leadership tab charts
+│   │   ├── alignment-tab.tsx   # NU Alignment tab charts
+│   │   ├── opportunity-tab.tsx # Opportunity tab charts
+│   │   ├── insights-panel.tsx  # AI-generated insights panel
+│   │   ├── chart-subtitle.tsx  # Chart subtitle component
+│   │   ├── helpers.ts          # Dashboard helper functions
+│   │   └── types.ts            # Dashboard TypeScript types
+│   ├── settings/
+│   │   └── prompt-editor.tsx   # Prompt template list + editor UI (owner-mode gated)
 │   ├── data/
 │   │   ├── posts-table.tsx     # TanStack Table: sortable, filterable, expandable rows
 │   │   ├── analysis-panel.tsx  # AI analysis UI: model selector, pre-scan, run buttons, log
 │   │   ├── date-range-filter.tsx # Date range filter: presets + custom range
 │   │   └── campaign-create-dialog.tsx # Campaign creation dialog
-│   └── ui/                     # shadcn/ui components (13)
+│   └── ui/                     # shadcn/ui components (15)
+│       ├── alert-dialog.tsx
 │       ├── badge.tsx
 │       ├── button.tsx
 │       ├── card.tsx
@@ -271,13 +317,18 @@ src/
 │       ├── separator.tsx
 │       ├── table.tsx
 │       ├── tabs.tsx
+│       ├── textarea.tsx
 │       ├── toast.tsx
-│       └── toaster.tsx
+│       ├── toaster.tsx
+│       └── tooltip.tsx
 ├── hooks/
 │   └── use-toast.ts            # Toast notification hook
 ├── lib/
-│   ├── analysis-prompt.ts      # LLM prompt template, JSON schema, version (v1.4)
-│   ├── campaign-prompt.ts     # Campaign AI Brief + Strategy prompts (brief-v1.0, strategy-v1.0)
+│   ├── analysis-prompt.ts      # Post analysis LLM prompt template, JSON schema (v1.4)
+│   ├── campaign-prompt.ts      # Campaign AI Brief + Strategy prompts (brief-v1.0, strategy-v1.0)
+│   ├── campaign-import.ts      # Campaign content import utilities
+│   ├── dashboard-insights-prompt.ts # Dashboard AI insights prompt (insights-v1.0)
+│   ├── prompt-loader.ts        # Runtime prompt fetcher: DB → hardcoded fallback
 │   ├── bluesky.ts              # Bluesky AT Protocol client
 │   ├── charts.ts               # Recharts theme config
 │   ├── claude.ts               # Claude API client (claude-sonnet-4)
@@ -286,7 +337,7 @@ src/
 │   ├── tokens.ts               # Design token constants (pillars, tiers, actions, date presets)
 │   └── utils.ts                # cn() utility
 └── types/
-    └── database.ts             # Supabase generated types (12 tables)
+    └── database.ts             # Supabase generated types (13 tables)
 ```
 
 ---
@@ -336,23 +387,39 @@ src/
 | **Posts Over Time — Snippet Tooltips** | Done | Hover shows date, post count, and truncated content snippets |
 | **PostsTable — Hashtag Display** | Done | Hashtags shown as outlined monospace badges in expanded row detail |
 | **PostsTable — Expand Arrow** | Done | SVG chevron with hover state + rotation animation (replaces unicode arrows) |
+| **Dashboard Decomposition** | Done | Extracted into sub-components: kpi-cards, leadership/alignment/opportunity tabs, insights panel, helpers |
+| **AI Insights Panel** | Done | Dashboard AI insights generation with prompt template (insights-v1.0) |
 
-### Phase 3A — Content Campaigns (In Progress)
+### Phase 3A — Content Campaigns (Complete)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **Campaign DB Schema** | Done | 4 tables: campaigns, campaign_documents, campaign_channels, campaign_analyses |
-| **Campaign CRUD API** | Done | 8 API routes: list, create, get, update, archive, documents, channels |
+| **Campaign CRUD API** | Done | 10+ API routes: list, create, get, update, archive, documents, channels, import, AI generation |
 | **Campaign Prompt Templates** | Done | AI Brief (brief-v1.0) + Strategy (strategy-v1.0), FrameWorks methodology |
-| **Campaign List Page** | Done | Card grid with filters (status, pillar, search), create dialog |
-| **Campaign Detail Page** | Done | Document management, strategy view, channel plan display |
+| **Campaign List Page** | Done | Card grid with filters (status, pillar, search), create dialog with type/duration/channels |
+| **Campaign Detail Page** | Done | Tabbed interface: Context, Prompt & Import, Strategy, Channels |
 | **AI Brief Generation** | Done | SSE streaming, parses research paper, saves as campaign_document |
 | **Strategy Generation** | Done | SSE streaming, reads all docs, generates audience narratives + channel plans |
+| **Audience Narrative Generation** | Done | SSE streaming, per-audience narrative with DB-backed prompt (audience-v1.0) |
+| **Content Import** | Done | Import content from external sources, content import page |
 | **Campaign Design Tokens** | Done | Statuses, channels, audiences, document roles in tokens.ts |
 | **Side Nav — Campaigns** | Done | Added to navigation with Megaphone icon |
-| End-to-end Testing | Not started | Create campaign → upload paper → generate brief → generate strategy |
 | Channel Content Editor | Not started | Edit suggested content per channel with char count |
 | Publish-to-Post Bridge | Not started | campaign_channels.published_post_id → posts table |
+
+### Phase 3A.1 — Prompt Management (Complete)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **prompt_templates Table** | Done | 13th Supabase table, UNIQUE on (client_id, slug, version), RLS + index |
+| **Prompt Loader Utility** | Done | `prompt-loader.ts` — queries DB for active prompt, falls back to hardcoded defaults |
+| **Prompt CRUD API** | Done | `/api/settings/prompts` — GET list, GET single by slug, PUT update |
+| **Prompt Editor UI** | Done | Left sidebar list + right editor: system prompt, temperature, max_tokens, read-only user message template |
+| **Consumer File Integration** | Done | All 7 consumer files wired to `loadPrompt()` with clientId param |
+| **Prompt Seeding** | Done | `scripts/seed-prompts.ts` seeds 5 prompts for default client |
+| **Owner-Mode Gating** | Done | `SHOW_PROMPT_MANAGEMENT` flag hides section from client demos |
+| **5 Prompt Slugs** | Done | post-analysis, dashboard-insights, campaign-brief, campaign-strategy, audience-narrative |
 
 ### Phase 3B — Multi-Platform + Outreach (Next)
 
@@ -436,9 +503,11 @@ npm start        # Start production server
 
 ## Next Steps (Recommended Order)
 
-1. **Dashboard AI Views** — Update charts to source from `post_analyses` (pillar distribution, sentiment breakdown, tier mix)
-2. **Twitter/X Connector** — Next platform (highest value for IPR), requires v2 API key
-3. **Outreach Module** — Build the amplifier/influencer tracking page (Module 4 in app spec)
-4. **LinkedIn / Facebook / Instagram Connectors** — OAuth-based platform integrations
-5. **Google Sheets Export** — One-click export of dashboard data for IPR leadership
-6. **Email Digest** — Scheduled summary reports
+1. **Channel Content Editor** — Edit suggested content per channel with character count validation
+2. **Publish-to-Post Bridge** — Link campaign_channels to published posts via published_post_id
+3. **Twitter/X Connector** — Next platform (highest value for IPR), requires v2 API key
+4. **Dashboard AI Views** — Update charts to source from `post_analyses` (pillar distribution, sentiment breakdown, tier mix)
+5. **Outreach Module** — Build the amplifier/influencer tracking page (Module 4 in app spec)
+6. **LinkedIn / Facebook / Instagram Connectors** — OAuth-based platform integrations
+7. **Google Sheets Export** — One-click export of dashboard data for IPR leadership
+8. **Email Digest** — Scheduled summary reports
