@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
@@ -303,6 +305,60 @@ export type Database = {
           },
         ]
       }
+      campaign_shares: {
+        Row: {
+          campaign_id: string
+          client_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_viewed_at: string | null
+          revoked_at: string | null
+          share_token: string
+          status: string
+          view_count: number
+        }
+        Insert: {
+          campaign_id: string
+          client_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_viewed_at?: string | null
+          revoked_at?: string | null
+          share_token: string
+          status?: string
+          view_count?: number
+        }
+        Update: {
+          campaign_id?: string
+          client_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_viewed_at?: string | null
+          revoked_at?: string | null
+          share_token?: string
+          status?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_shares_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_shares_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           campaign_type: string
@@ -415,53 +471,6 @@ export type Database = {
           },
         ]
       }
-      dashboard_insights: {
-        Row: {
-          analyzed_count: number
-          client_id: string
-          created_at: string
-          date_range_end: string
-          date_range_start: string
-          generated_at: string
-          id: string
-          insights: Json
-          model_version: string | null
-          post_count: number
-        }
-        Insert: {
-          analyzed_count?: number
-          client_id: string
-          created_at?: string
-          date_range_end: string
-          date_range_start: string
-          generated_at?: string
-          id?: string
-          insights?: Json
-          model_version?: string | null
-          post_count?: number
-        }
-        Update: {
-          analyzed_count?: number
-          client_id?: string
-          created_at?: string
-          date_range_end?: string
-          date_range_start?: string
-          generated_at?: string
-          id?: string
-          insights?: Json
-          model_version?: string | null
-          post_count?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dashboard_insights_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       clients: {
         Row: {
           client_name: string
@@ -535,6 +544,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "collection_runs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboard_insights: {
+        Row: {
+          analyzed_count: number
+          client_id: string
+          created_at: string
+          date_range_end: string
+          date_range_start: string
+          generated_at: string
+          id: string
+          insights: Json
+          model_version: string | null
+          post_count: number
+        }
+        Insert: {
+          analyzed_count?: number
+          client_id: string
+          created_at?: string
+          date_range_end: string
+          date_range_start: string
+          generated_at?: string
+          id?: string
+          insights?: Json
+          model_version?: string | null
+          post_count?: number
+        }
+        Update: {
+          analyzed_count?: number
+          client_id?: string
+          created_at?: string
+          date_range_end?: string
+          date_range_start?: string
+          generated_at?: string
+          id?: string
+          insights?: Json
+          model_version?: string | null
+          post_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_insights_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -858,49 +914,49 @@ export type Database = {
       }
       prompt_templates: {
         Row: {
-          id: string
           client_id: string
-          slug: string
-          name: string
-          description: string | null
-          version: string
-          system_prompt: string
-          user_message_template: string | null
-          temperature: number
-          max_tokens: number
-          is_active: boolean
           created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          max_tokens: number
+          name: string
+          slug: string
+          system_prompt: string
+          temperature: number
           updated_at: string
+          user_message_template: string | null
+          version: string
         }
         Insert: {
-          id?: string
           client_id: string
-          slug: string
-          name: string
-          description?: string | null
-          version?: string
-          system_prompt: string
-          user_message_template?: string | null
-          temperature?: number
-          max_tokens?: number
-          is_active?: boolean
           created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_tokens?: number
+          name: string
+          slug: string
+          system_prompt: string
+          temperature?: number
           updated_at?: string
+          user_message_template?: string | null
+          version?: string
         }
         Update: {
-          id?: string
           client_id?: string
-          slug?: string
-          name?: string
-          description?: string | null
-          version?: string
-          system_prompt?: string
-          user_message_template?: string | null
-          temperature?: number
-          max_tokens?: number
-          is_active?: boolean
           created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_tokens?: number
+          name?: string
+          slug?: string
+          system_prompt?: string
+          temperature?: number
           updated_at?: string
+          user_message_template?: string | null
+          version?: string
         }
         Relationships: [
           {
@@ -970,6 +1026,7 @@ export type Database = {
 }
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
@@ -1050,3 +1107,43 @@ export type TablesUpdate<
       ? U
       : never
     : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

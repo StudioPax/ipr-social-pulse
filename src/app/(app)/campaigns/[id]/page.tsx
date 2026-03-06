@@ -8,6 +8,15 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
   FileText,
@@ -16,6 +25,12 @@ import {
   Calendar,
   Users,
   Check,
+  Share2,
+  Link2,
+  Loader2,
+  Eye,
+  Trash2,
+  Copy,
 } from "lucide-react";
 
 import type { CampaignData, StrategyOutput } from "@/components/campaign-detail/types";
@@ -24,6 +39,7 @@ import { CampaignContextTab } from "@/components/campaign-detail/campaign-contex
 import { CampaignStrategyTab } from "@/components/campaign-detail/campaign-strategy-tab";
 import { CampaignPromptTab } from "@/components/campaign-detail/campaign-prompt-tab";
 import { CampaignChannelsTab } from "@/components/campaign-detail/campaign-channels-tab";
+import { PrintableCampaign } from "@/components/share/printable-campaign";
 
 // ---------------------------------------------------------------------------
 // Tab definitions
@@ -49,9 +65,23 @@ function CampaignDetailInner() {
   const router = useRouter();
   const pathname = usePathname();
 
+  const { toast } = useToast();
+
   const [data, setData] = useState<CampaignData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ── Share State ─────────────────────────────────────────────────────
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareData, setShareData] = useState<{
+    share_token: string;
+    status: string;
+    created_at: string;
+    expires_at: string;
+    view_count: number;
+    last_viewed_at: string | null;
+  } | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   // Active tab — synced to ?tab= search param
   const initialTab = (searchParams.get("tab") as TabValue) || "context";
@@ -86,6 +116,81 @@ function CampaignDetailInner() {
   useEffect(() => {
     loadCampaign();
   }, [loadCampaign]);
+
+  // ── Share Data Loading ──────────────────────────────────────────────
+
+  const loadShareStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/share`);
+      if (!res.ok) return;
+      const json = await res.json();
+      setShareData(json.share || null);
+    } catch {
+      // Silently fail — share status is non-critical
+    }
+  }, [campaignId]);
+
+  useEffect(() => {
+    loadShareStatus();
+  }, [loadShareStatus]);
+
+  const handleCreateShare = async () => {
+    setShareLoading(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/share`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to create share link");
+      const json = await res.json();
+      setShareData(json.share);
+      toast({
+        title: "Share link created",
+        description: "Anyone with this link can view the campaign strategy and plan.",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to create share link. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleRevokeShare = async () => {
+    setShareLoading(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/share`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to revoke share link");
+      setShareData(null);
+      toast({
+        title: "Share link revoked",
+        description: "The shared link is no longer accessible.",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to revoke share link. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleCopyShareLink = () => {
+    if (!shareData) return;
+    const url = `${window.location.origin}/share/${shareData.share_token}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link copied",
+      description: "Share link copied to clipboard.",
+      duration: 2000,
+    });
+  };
 
   // ── Loading / Error ───────────────────────────────────────────────────
 
@@ -167,6 +272,22 @@ function CampaignDetailInner() {
           <Badge className={cn("mt-1", STATUS_COLORS[campaign.status] || "")}>
             {campaign.status}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-0.5 gap-1.5"
+            onClick={() => setShareDialogOpen(true)}
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            Share
+          </Button>
+          <div className="mt-0.5">
+            <PrintableCampaign
+              campaign={campaign}
+              analysis={analysis}
+              channels={channels}
+            />
+          </div>
         </div>
 
         {campaign.pillar_tags && campaign.pillar_tags.length > 0 && (
@@ -269,6 +390,127 @@ function CampaignDetailInner() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Share Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent className="max-w-[480px] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-4 w-4" />
+              Share Campaign
+            </DialogTitle>
+            <DialogDescription>
+              Create a read-only link to share the strategy and campaign plan
+              with colleagues. No login required.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2 overflow-hidden">
+            {shareData ? (
+              <>
+                {/* Active share link */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-border bg-muted/50 px-3 py-2 text-xs font-mono">
+                    <span className="block truncate">
+                      {`${typeof window !== "undefined" ? window.location.origin : ""}/share/${shareData.share_token}`}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyShareLink}
+                    className="shrink-0 gap-1.5"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Copy
+                  </Button>
+                </div>
+
+                {/* Share metadata */}
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5 text-sm">
+                  <table className="w-full">
+                    <tbody>
+                      <tr>
+                        <td className="text-muted-foreground py-1">
+                          <span className="flex items-center gap-1.5">
+                            <Eye className="h-3.5 w-3.5 shrink-0" />
+                            Views
+                          </span>
+                        </td>
+                        <td className="text-right font-mono py-1">
+                          {shareData.view_count}
+                        </td>
+                      </tr>
+                      {shareData.last_viewed_at && (
+                        <tr>
+                          <td className="text-muted-foreground py-1">Last viewed</td>
+                          <td className="text-right font-mono text-xs py-1">
+                            {formatDate(shareData.last_viewed_at)}
+                          </td>
+                        </tr>
+                      )}
+                      <tr>
+                        <td className="text-muted-foreground py-1">Created</td>
+                        <td className="text-right font-mono text-xs py-1">
+                          {formatDate(shareData.created_at)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="text-muted-foreground py-1">Expires</td>
+                        <td className="text-right font-mono text-xs py-1">
+                          {formatDate(shareData.expires_at)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Revoke button */}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full gap-1.5"
+                  onClick={handleRevokeShare}
+                  disabled={shareLoading}
+                >
+                  {shareLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  Revoke Share Link
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* No active share */}
+                <div className="rounded-md border border-dashed border-border bg-muted/20 p-6 text-center space-y-3">
+                  <Link2 className="h-8 w-8 text-muted-foreground mx-auto" />
+                  <div>
+                    <p className="text-sm font-medium">No active share link</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Create a link to share the strategy and campaign plan.
+                      Links expire after 180 days.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  className="w-full gap-1.5"
+                  onClick={handleCreateShare}
+                  disabled={shareLoading}
+                >
+                  {shareLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Link2 className="h-3.5 w-3.5" />
+                  )}
+                  Create Share Link
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
