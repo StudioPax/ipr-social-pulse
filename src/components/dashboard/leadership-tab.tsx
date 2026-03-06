@@ -165,16 +165,30 @@ export function LeadershipTab({ posts, analyses, dateRange, analyzedCount }: Tab
                   <Tooltip
                     content={({ active, payload }) => {
                       if (!active || !payload?.length) return null;
-                      const d = payload[0].payload as { week: string; avgEngagement: number; postCount: number };
+                      const d = payload[0].payload as { week: string; avgEngagement: number; postCount: number; snippets: string[] };
                       const weekLabel = new Date(d.week + "T00:00:00").toLocaleDateString(undefined, {
-                        month: "short", day: "numeric",
+                        month: "short", day: "numeric", year: "numeric",
                       });
                       return (
-                        <div className="rounded-md border bg-popover px-3 py-2 shadow-md">
+                        <div className="rounded-md border bg-popover px-3 py-2 shadow-md max-w-xs">
                           <p className="text-xs font-medium font-mono">Week of {weekLabel}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Avg: {d.avgEngagement} / post ({d.postCount} posts)
+                          <p className="text-xs text-muted-foreground mb-1">
+                            Avg: {d.avgEngagement} / post &middot; {d.postCount} {d.postCount === 1 ? "post" : "posts"}
                           </p>
+                          {d.snippets.length > 0 && (
+                            <ul className="space-y-1 border-t pt-1">
+                              {d.snippets.slice(0, 5).map((s, i) => (
+                                <li key={i} className="text-[11px] leading-tight text-muted-foreground">
+                                  {s}
+                                </li>
+                              ))}
+                              {d.snippets.length > 5 && (
+                                <li className="text-[11px] text-muted-foreground italic">
+                                  +{d.snippets.length - 5} more
+                                </li>
+                              )}
+                            </ul>
+                          )}
                         </div>
                       );
                     }}

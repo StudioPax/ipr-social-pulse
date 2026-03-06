@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, DM_Serif_Display, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, DM_Serif_Display, JetBrains_Mono, Epilogue } from "next/font/google";
 import "./globals.css";
 import { TopBar } from "@/components/layout/top-bar";
 import { SideNav } from "@/components/layout/side-nav";
@@ -24,6 +24,13 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const epilogue = Epilogue({
+  weight: "700",
+  subsets: ["latin"],
+  variable: "--font-logo",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "MERIDIAN — Northwestern IPR",
   description:
@@ -38,7 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${dmSerifDisplay.variable} ${jetbrainsMono.variable}`}
+      className={`${dmSans.variable} ${dmSerifDisplay.variable} ${jetbrainsMono.variable} ${epilogue.variable}`}
     >
       <body className="font-sans antialiased">
         {/* UI Spec §4 — Page Shell */}

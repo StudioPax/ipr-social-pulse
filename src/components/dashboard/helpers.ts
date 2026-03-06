@@ -122,21 +122,23 @@ export function formatDelta(delta: number): string {
 export function groupByWeek(
   posts: PostRow[],
   dateRange: { startDate: string; endDate: string }
-): { week: string; avgEngagement: number; postCount: number }[] {
-  const weekMap: Record<string, { totalEngagement: number; count: number }> = {};
+): { week: string; avgEngagement: number; postCount: number; snippets: string[] }[] {
+  const weekMap: Record<string, { totalEngagement: number; count: number; snippets: string[] }> = {};
 
   for (const p of posts) {
     if (!p.published_at) continue;
     const date = new Date(p.published_at);
     const weekStart = getWeekStart(date);
     const key = weekStart.toISOString().split("T")[0];
-    if (!weekMap[key]) weekMap[key] = { totalEngagement: 0, count: 0 };
+    if (!weekMap[key]) weekMap[key] = { totalEngagement: 0, count: 0, snippets: [] };
     weekMap[key].totalEngagement += p.engagement_total || 0;
     weekMap[key].count++;
+    const snippet = (p.content_text || "No text").slice(0, 80);
+    weekMap[key].snippets.push(snippet + (snippet.length >= 80 ? "..." : ""));
   }
 
   // Build full week series spanning the range
-  const result: { week: string; avgEngagement: number; postCount: number }[] = [];
+  const result: { week: string; avgEngagement: number; postCount: number; snippets: string[] }[] = [];
   const cursor = getWeekStart(new Date(dateRange.startDate + "T00:00:00"));
   const end = new Date(dateRange.endDate + "T00:00:00");
 
@@ -147,6 +149,7 @@ export function groupByWeek(
       week: key,
       avgEngagement: data ? Math.round(data.totalEngagement / data.count) : 0,
       postCount: data?.count || 0,
+      snippets: data?.snippets || [],
     });
     cursor.setDate(cursor.getDate() + 7);
   }

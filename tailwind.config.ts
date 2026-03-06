@@ -14,6 +14,7 @@ const config: Config = {
         display: ["DM Serif Display", "serif"],  // Page titles
         sans: ["DM Sans", "system-ui", "sans-serif"],  // Body text
         mono: ["JetBrains Mono", "monospace"],  // Data/numbers
+        logo: ["var(--font-logo)", "sans-serif"],  // Meridian wordmark
       },
       /* Semantic color tokens mapped from CSS variables */
       colors: {

@@ -20,7 +20,7 @@ export function InsightsPanel({ clientId, dateRange, metrics }: InsightsPanelPro
   const [postCount, setPostCount] = useState<number>(0);
   const [analyzedCount, setAnalyzedCount] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch cached insights on mount + dateRange change
@@ -122,12 +122,12 @@ export function InsightsPanel({ clientId, dateRange, metrics }: InsightsPanelPro
                   Regenerate
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setIsExpanded(!isExpanded)}
-                  className="h-7 w-7 p-0"
+                  className="h-8 w-8 p-0"
                 >
-                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                 </Button>
               </>
             ) : (

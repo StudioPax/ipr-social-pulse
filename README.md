@@ -5,7 +5,7 @@
 **Client:** Northwestern IPR
 **Built by:** Studio Pax
 **Status:** Phase 3A Complete, Phase 3B Next
-**Last updated:** 2026-03-05
+**Last updated:** 2026-03-06
 
 ---
 
@@ -71,7 +71,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<set in Vercel>
 
 ---
 
-## Database Schema (13 Tables)
+## Database Schema (14 Tables)
 
 All tables have RLS enabled with anon-key policies for SELECT, INSERT, and UPDATE.
 
@@ -140,24 +140,30 @@ analysis_runs
 
 post_analyses
 ├── id (uuid, PK)
-├── post_id → posts.id (UNIQUE)
+├── post_id → posts.id (UNIQUE, one-to-one)
 ├── analysis_run_id → analysis_runs.id
 ├── pillar_primary, pillar_secondary (text)
 ├── pillar_confidence (numeric)
 ├── pillar_rationale (text)
 ├── sentiment_label (text), sentiment_score, sentiment_confidence (numeric)
 ├── sentiment_rationale (text)
-├── performance_tier (text) — T1–T4
+├── performance_tier (text) — T1_PolicyEngine, T2_Visibility, T3_Niche, T4_Underperformer
 ├── policy_relevance (numeric)
 ├── policy_relevance_rationale (text)
 ├── tier_rationale (text)
 ├── audience_fit, content_type (text)
 ├── nu_alignment_tags (text[])
-├── recommended_action (text)
+├── recommended_action (text) — amplify, template, promote_niche, diagnose, archive
 ├── research_title, research_url (text)
 ├── research_authors (text[]), research_confidence (numeric)
 ├── key_topics (text[])
 ├── summary (text)
+├── fw_values_lead_eval (text), fw_values_lead_score (numeric)
+├── fw_causal_chain_eval (text), fw_causal_chain_score (numeric)
+├── fw_cultural_freight_eval (text), fw_cultural_freight_score (numeric)
+├── fw_solutions_framing_eval (text), fw_solutions_framing_score (numeric)
+├── fw_episodic_thematic_eval (text), fw_episodic_thematic_score (numeric)
+├── fw_overall_score (numeric), fw_rewrite_rec (text)
 ├── llm_response_raw (jsonb)
 ├── model_version, prompt_version (text)
 ├── analyzed_at (timestamptz)
@@ -174,43 +180,82 @@ post_outreach
 ├── cited_research_title (text), cited_authors (text[])
 ├── published_at (timestamptz)
 
-campaigns (NEW — Module 7)
+dashboard_insights
+├── id (uuid, PK)
+├── client_id → clients.id
+├── date_range_start, date_range_end (text)
+├── insights (jsonb) — cached AI-generated insights object
+├── post_count (int), analyzed_count (int)
+├── model_version (text)
+├── generated_at (timestamptz)
+├── created_at (timestamptz)
+
+campaigns
 ├── id (uuid, PK)
 ├── client_id → clients.id
 ├── title (text, UNIQUE per client)
 ├── status (text) — draft, active, completed, archived
-├── research_authors, pillar_tags, target_audiences (text[])
-├── research_doi, research_url, publication_date, embargo_until (text/date)
+├── campaign_type (text) — new_research, amplify, policy_moment, faculty_spotlight, donor_cultivation
+├── duration_weeks (int)
+├── start_date (date)
+├── pillar_primary, pillar_secondary (text)
+├── target_audiences (text[]) — policymaker, faculty, donor, public, media, nu_leadership
+├── channels_used (text[]) — bluesky, twitter, linkedin, facebook, instagram, website, newsletter, etc.
+├── research_authors (text[])
+├── research_doi, research_url (text)
+├── publication_date (date), embargo_until (date)
+├── nu_alignment_tags (text[])
 ├── created_by (text), created_at / updated_at (timestamptz)
 
-campaign_documents (NEW — Module 7)
+campaign_documents
 ├── id (uuid, PK)
 ├── campaign_id → campaigns.id
 ├── document_role (text) — research_paper, research_notes, ai_brief, supporting
 ├── title, content_text, source (text)
+├── file_url, file_name, file_type (text) — for uploaded file references
 ├── word_count (int), is_included (bool), sort_order (int)
 ├── created_at / updated_at (timestamptz)
 
-campaign_channels (NEW — Module 7)
+campaign_channels
 ├── id (uuid, PK)
 ├── campaign_id → campaigns.id
 ├── channel (text), audience_segment (text)
-├── suggested_content, edited_content (text)
-├── char_count (int), hashtags, mentions (text[])
+├── suggested_content (text)
+├── narrative_angle, call_to_action (text)
+├── char_limit (int), hashtags, mentions (text[])
+├── key_message_ids (int[]) — indexes into campaign_analyses.key_messages
 ├── media_suggestion (text)
+├── stage (text) — pre_launch, rollout, sustain, measure
+├── week_number (int)
 ├── status (text) — planned, drafted, approved, published, skipped
-├── scheduled_for (timestamptz), published_post_id → posts.id
+├── scheduled_date (date), published_post_id → posts.id
 ├── publish_order (int)
+├── created_at / updated_at (timestamptz)
 
-campaign_analyses (NEW — Module 7)
+campaign_analyses
 ├── id (uuid, PK)
-├── campaign_id → campaigns.id (UNIQUE)
-├── strategy_output (jsonb)
+├── campaign_id → campaigns.id (UNIQUE, one-to-one)
+├── research_summary (text)
+├── key_findings (text[])
 ├── key_messages (text[])
-├── model_used, prompt_version (text)
-├── generated_at (timestamptz)
+├── policy_implications (text[])
+├── pillar_rationale (text)
+├── newsworthiness (text)
+├── nu_alignment_mapping (text)
+├── embargo_notes (text)
+├── timing_recommendations (text)
+├── faculty_engagement_plan (text)
+├── cross_promotion_opps (text[])
+├── fw_values_lead, fw_causal_chain, fw_cultural_freight (text)
+├── fw_solutions_framing, fw_thematic_bridge (text)
+├── audience_narratives (jsonb) — per-audience narrative objects
+├── channel_strategy (jsonb) — per-channel content plans
+├── documents_used (jsonb) — references to source documents
+├── llm_response_raw (jsonb)
+├── model_version, prompt_version (text)
+├── analyzed_at (timestamptz)
 
-prompt_templates (NEW — Prompt Management)
+prompt_templates
 ├── id (uuid, PK)
 ├── client_id → clients.id
 ├── slug (text) — post-analysis, dashboard-insights, campaign-brief, campaign-strategy, audience-narrative
@@ -228,6 +273,39 @@ prompt_templates (NEW — Prompt Management)
 
 - **1 client:** Northwestern IPR
 - **5 social accounts:** Bluesky (connected), Twitter, LinkedIn, Facebook, Instagram (pending API keys)
+
+### Typed Constants (`src/lib/tokens.ts`)
+
+All enum-like values used in DB columns and UI are defined as typed constants:
+
+| Constant | Values | Used In |
+|----------|--------|---------|
+| `PILLARS` | Health, Democracy, Methods, Opportunity, Sustainability | post_analyses.pillar_primary/secondary, campaigns.pillar_primary/secondary |
+| `PERFORMANCE_TIERS` | T1_PolicyEngine, T2_Visibility, T3_Niche, T4_Underperformer | post_analyses.performance_tier |
+| `RECOMMENDED_ACTIONS` | amplify, template, promote_niche, diagnose, archive | post_analyses.recommended_action |
+| `CAMPAIGN_STATUSES` | draft, active, completed, archived | campaigns.status |
+| `CHANNEL_STATUSES` | planned, drafted, approved, published, skipped | campaign_channels.status |
+| `CAMPAIGN_TYPES` | new_research, amplify, policy_moment, faculty_spotlight, donor_cultivation | campaigns.campaign_type |
+| `CAMPAIGN_STAGES` | pre_launch, rollout, sustain, measure | campaign_channels.stage |
+| `CAMPAIGN_CHANNELS` | bluesky, twitter, linkedin, facebook, instagram, website, newsletter, press_release, op_ed, event, podcast | campaigns.channels_used, campaign_channels.channel |
+| `TARGET_AUDIENCES` | policymaker, faculty, donor, public, media, nu_leadership | campaigns.target_audiences |
+| `DOCUMENT_ROLES` | research_paper, research_notes, ai_brief, supporting | campaign_documents.document_role |
+| `CAMPAIGN_DURATIONS` | 4, 6, 8 (weeks) | campaigns.duration_weeks |
+
+### AI Models & Prompt Slugs
+
+| Model | ID | Used For |
+|-------|-----|----------|
+| Claude | `claude-sonnet-4-20250514` | Post analysis, dashboard insights, campaign strategy |
+| Gemini | `gemini-3-pro-preview` | Alternative model for post analysis |
+
+| Prompt Slug | Version | Description |
+|-------------|---------|-------------|
+| `post-analysis` | v1.4 | Pillar tagging, sentiment, tiering, FrameWorks eval |
+| `dashboard-insights` | insights-v1.0 | Executive summary + commentary from dashboard metrics |
+| `campaign-brief` | brief-v1.0 | AI brief from research paper |
+| `campaign-strategy` | strategy-v1.0 | Full campaign strategy with FrameWorks methodology |
+| `audience-narrative` | audience-v1.0 | Per-audience narrative generation |
 
 ---
 
@@ -337,7 +415,7 @@ src/
 │   ├── tokens.ts               # Design token constants (pillars, tiers, actions, date presets)
 │   └── utils.ts                # cn() utility
 └── types/
-    └── database.ts             # Supabase generated types (13 tables)
+    └── database.ts             # Supabase generated types (14 tables)
 ```
 
 ---
@@ -351,7 +429,7 @@ src/
 | **App Shell** | Done | TopBar, SideNav, responsive layout |
 | **Meridian Logo** | Done | SVG component, mark + full variants |
 | **Design System** | Done | IPR tokens, Northwestern purple (#4E2A84), DM Sans |
-| **Supabase Schema** | Done | 8 tables, RLS policies, typed client |
+| **Supabase Schema** | Done | 14 tables, RLS policies, typed client |
 | **Settings Page** | Done | Client profile, social accounts, AI model API keys |
 | **Collect Page** | Done | Platform selector, date presets, log window |
 | **Bluesky Connector** | Done | Feed + search modes, post normalization |
@@ -412,7 +490,7 @@ src/
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| **prompt_templates Table** | Done | 13th Supabase table, UNIQUE on (client_id, slug, version), RLS + index |
+| **prompt_templates Table** | Done | 14th Supabase table, UNIQUE on (client_id, slug, version), RLS + index |
 | **Prompt Loader Utility** | Done | `prompt-loader.ts` — queries DB for active prompt, falls back to hardcoded defaults |
 | **Prompt CRUD API** | Done | `/api/settings/prompts` — GET list, GET single by slug, PUT update |
 | **Prompt Editor UI** | Done | Left sidebar list + right editor: system prompt, temperature, max_tokens, read-only user message template |
