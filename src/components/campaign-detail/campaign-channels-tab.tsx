@@ -42,7 +42,7 @@ import {
   Pencil,
   Save,
 } from "lucide-react";
-import type { CampaignChannel, StrategyOutput, ChannelEditForm } from "./types";
+import type { CampaignChannel, StrategyOutput, ChannelEditForm, WeeklyObjective } from "./types";
 import {
   CHANNEL_STATUS_COLORS,
   formatDate,
@@ -81,6 +81,11 @@ export function CampaignChannelsTab({
     media_suggestion: "",
   });
   const [savingChannel, setSavingChannel] = useState(false);
+
+  // Weekly objective editing state
+  const [editingWeek, setEditingWeek] = useState<number | null>(null);
+  const [weekObjectiveText, setWeekObjectiveText] = useState("");
+  const [savingObjective, setSavingObjective] = useState(false);
 
   // Add channel deliverable state
   const [showAddChannel, setShowAddChannel] = useState(false);
@@ -240,6 +245,38 @@ export function CampaignChannelsTab({
     }
   };
 
+  // Weekly objective helpers
+  const weeklyObjectives: WeeklyObjective[] = strategyOutput?.weekly_objectives || [];
+
+  const getWeekObjective = (weekNum: number | null): string | undefined => {
+    if (weekNum == null) return undefined;
+    return weeklyObjectives.find((o) => o.week_number === weekNum)?.objective;
+  };
+
+  const startEditObjective = (weekNum: number, currentText: string) => {
+    setEditingWeek(weekNum);
+    setWeekObjectiveText(currentText);
+  };
+
+  const saveObjective = async (weekNum: number) => {
+    setSavingObjective(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/weekly-objectives`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ week_number: weekNum, objective: weekObjectiveText }),
+      });
+      if (!res.ok) throw new Error("Failed to save objective");
+      toast({ title: "Objective updated", description: `Week ${weekNum} objective saved.` });
+      setEditingWeek(null);
+      await onRefresh();
+    } catch {
+      toast({ title: "Error", description: "Failed to save weekly objective." });
+    } finally {
+      setSavingObjective(false);
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────
 
   return (
@@ -312,6 +349,77 @@ export function CampaignChannelsTab({
                       {weekChannels.length} item{weekChannels.length !== 1 ? "s" : ""}
                     </span>
                   </div>
+
+                  {/* Weekly objective */}
+                  {weekNum != null && (() => {
+                    const objectiveText = getWeekObjective(weekNum);
+                    const isEditingThis = editingWeek === weekNum;
+
+                    if (isEditingThis) {
+                      return (
+                        <div className="px-4 py-3 border-b bg-muted/10">
+                          <textarea
+                            className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            value={weekObjectiveText}
+                            onChange={(e) => setWeekObjectiveText(e.target.value)}
+                            disabled={savingObjective}
+                            placeholder={`Week ${weekNum} objective...`}
+                            rows={2}
+                          />
+                          <div className="flex items-center justify-end gap-2 mt-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingWeek(null)}
+                              disabled={savingObjective}
+                            >
+                              <X className="h-3.5 w-3.5 mr-1" />
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => saveObjective(weekNum)}
+                              disabled={savingObjective}
+                            >
+                              {savingObjective ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                              ) : (
+                                <Save className="h-3.5 w-3.5 mr-1" />
+                              )}
+                              {savingObjective ? "Saving..." : "Save"}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (objectiveText) {
+                      return (
+                        <div
+                          className="px-4 py-2.5 border-b bg-muted/10 flex items-start gap-2 group cursor-pointer hover:bg-muted/20 transition-colors"
+                          onClick={() => startEditObjective(weekNum, objectiveText)}
+                        >
+                          <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                            {objectiveText}
+                          </p>
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors shrink-0 mt-0.5" />
+                        </div>
+                      );
+                    }
+
+                    // Empty state — clickable placeholder
+                    return (
+                      <div
+                        className="px-4 py-2 border-b border-dashed border-border/50 flex items-center gap-2 group cursor-pointer hover:bg-muted/10 transition-colors"
+                        onClick={() => startEditObjective(weekNum, "")}
+                      >
+                        <p className="text-xs text-muted-foreground/50 italic group-hover:text-muted-foreground/80 transition-colors">
+                          + Add weekly objective…
+                        </p>
+                      </div>
+                    );
+                  })()}
+
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -411,7 +519,7 @@ export function CampaignChannelsTab({
                                 </Select>
                               </TableCell>
                               <TableCell className="text-sm text-muted-foreground">
-                                {ch.scheduled_for ? formatDate(ch.scheduled_for) : "--"}
+                                {ch.scheduled_date ? formatDate(ch.scheduled_date) : "--"}
                               </TableCell>
                               <TableCell className="text-right font-mono tabular-nums text-sm">
                                 {ch.char_count != null ? formatNumber(ch.char_count) : "--"}

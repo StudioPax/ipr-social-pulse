@@ -179,6 +179,37 @@ Each key message must:
 - Avoid jargon — accessible to educated non-specialist
 - RESPECT the framing from the Research Notes — amplify, don't reinterpret
 
+## Weekly Objectives (REQUIRED)
+You MUST generate a "weekly_objectives" array with exactly one entry per week of the
+campaign duration. These objectives are the strategic backbone of the campaign plan —
+they tell the content team WHY each week exists and WHAT it should accomplish.
+
+Each objective is a 2–4 sentence paragraph that answers three questions:
+1. What is the strategic goal for this week? (not just the stage label)
+2. How does this week build on the previous week and set up the next?
+3. What specific narrative angle, audience emphasis, or content tactic defines this week?
+
+Write objectives as strategic director-level guidance, not summaries of deliverables.
+The objectives should read as if a senior communications strategist is briefing the
+content team before they write anything. Be specific to THIS campaign's research,
+audiences, and framing — never generic.
+
+Guidelines:
+- Reference the actual research findings, not just "the research"
+- Name specific audiences being prioritized that week and why
+- Describe the narrative arc shift from week to week (e.g. "shift from data credibility to human impact")
+- Reference FrameWorks framing choices relevant to each phase
+- For pre_launch: what groundwork is being laid and for whom?
+- For rollout: what's the lead message and which channels carry the weight?
+- For sustain: how does the message evolve to stay fresh without losing coherence?
+- For measure: what does the wrap-up accomplish and what doors does it leave open?
+
+Example (for a 4-week campaign about youth mental health research):
+- Week 1: "Seed the research with media and institutional audiences before the public launch. Establish the credibility of the methodology and prime journalists with the key finding — that the mental health effects persist far longer than previously documented. The narrative this week is evidence-first: position the study as filling a documented gap in the trauma literature."
+- Week 2: "Full public launch. Lead with the values frame — every child deserves to feel safe — and let the data reinforce it. LinkedIn and Twitter carry the primary load for reach; the newsletter targets policymakers with structured implications. Shift the narrative from 'what the research found' to 'why it matters for communities right now.'"
+- Week 3: "Deepen engagement through opinion and long-form content. The op-ed and public-facing website article move from headline statistics to human-scale storytelling, bridging episodic to thematic framing per FrameWorks methodology. Faculty are positioned for media interviews. Policymaker-specific content emphasizes structural funding gaps."
+- Week 4: "Close the arc with measurement and forward-looking institutional messaging. Recap key evidence, signal ongoing researcher availability, and offer concrete policy support (briefings, testimony). The tone shifts from urgency to sustained commitment — IPR as a long-term resource, not a one-time news source."
+
 ## Output Schema
 {
   "research_summary": "2-3 sentence accessible summary (drawn primarily from Research Notes)",
@@ -217,6 +248,16 @@ Each key message must:
       "media_suggestion": "What visual/media to pair"
     }
   },
+  "weekly_objectives": [
+    {
+      "week_number": 1,
+      "objective": "Strategic 2-4 sentence objective for this week. Reference the specific research, name the priority audiences, describe the narrative angle, and explain how this week sets up the next. Write as director-level guidance for the content team."
+    },
+    {
+      "week_number": 2,
+      "objective": "..."
+    }
+  ],
   "fw_values_lead": "Recommended values-led opening that works across channels",
   "fw_causal_chain": "How to explain the systemic dimension of this research",
   "fw_cultural_freight": "Specific frames/words to AVOID for this topic",
@@ -238,6 +279,7 @@ export interface StrategyDocument {
 
 export function buildStrategyUserMessage(campaign: {
   title: string;
+  duration_weeks?: number;
   research_authors: string[];
   research_doi?: string;
   embargo_until?: string;
@@ -295,6 +337,7 @@ export function buildStrategyUserMessage(campaign: {
 
 === CAMPAIGN ===
 Title: ${campaign.title}
+Duration: ${campaign.duration_weeks ? `${campaign.duration_weeks} weeks — you MUST generate exactly ${campaign.duration_weeks} weekly_objectives entries (week 1 through ${campaign.duration_weeks})` : "Not specified"}
 Authors: ${campaign.research_authors.join(", ")}
 DOI: ${campaign.research_doi || "N/A"}
 Embargo: ${campaign.embargo_until || "None"}
@@ -328,6 +371,11 @@ export interface ChannelStrategyItem {
   media_suggestion: string;
 }
 
+export interface WeeklyObjectiveOutput {
+  week_number: number;
+  objective: string;
+}
+
 export interface StrategyOutput {
   research_summary: string;
   key_findings: string[];
@@ -341,6 +389,7 @@ export interface StrategyOutput {
   key_messages: string[];
   audience_narratives: Record<string, AudienceNarrative>;
   channel_strategy: Record<string, ChannelStrategyItem>;
+  weekly_objectives?: WeeklyObjectiveOutput[];
   fw_values_lead: string;
   fw_causal_chain: string;
   fw_cultural_freight: string;

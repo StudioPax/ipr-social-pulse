@@ -12,8 +12,8 @@ const config: Config = {
       /* UI Spec §6 — Typography */
       fontFamily: {
         display: ["DM Serif Display", "serif"],  // Page titles
-        sans: ["DM Sans", "system-ui", "sans-serif"],  // Body text
-        mono: ["JetBrains Mono", "monospace"],  // Data/numbers
+        sans: ["var(--font-geist-sans)", "Geist Fallback", "system-ui", "sans-serif"],  // Body text
+        mono: ["var(--font-geist-mono)", "monospace"],  // Data/numbers
         logo: ["var(--font-logo)", "sans-serif"],  // Meridian wordmark
       },
       /* Semantic color tokens mapped from CSS variables */

@@ -161,6 +161,7 @@ export async function POST(
 
         const userMessage = buildStrategyUserMessage({
           title: campaign.title,
+          duration_weeks: campaign.duration_weeks || undefined,
           research_authors: campaign.research_authors || [],
           research_doi: campaign.research_doi || undefined,
           embargo_until: campaign.embargo_until || undefined,
@@ -237,6 +238,7 @@ export async function POST(
           faculty_engagement_plan: strategyOutput.faculty_engagement_plan || "",
           nu_alignment_mapping: strategyOutput.nu_alignment_mapping || "",
           cross_promotion_opps: strategyOutput.cross_promotion_opps || [],
+          weekly_objectives: (strategyOutput.weekly_objectives || []) as unknown as Json,
           llm_response_raw: strategyOutput as unknown as Json,
           model_version: selectedModel,
           prompt_version: prompt.version,

@@ -97,6 +97,7 @@ export type Database = {
           prompt_version: string | null
           research_summary: string | null
           timing_recommendations: string | null
+          weekly_objectives: Json
         }
         Insert: {
           analyzed_at?: string | null
@@ -124,6 +125,7 @@ export type Database = {
           prompt_version?: string | null
           research_summary?: string | null
           timing_recommendations?: string | null
+          weekly_objectives?: Json
         }
         Update: {
           analyzed_at?: string | null
@@ -151,6 +153,7 @@ export type Database = {
           prompt_version?: string | null
           research_summary?: string | null
           timing_recommendations?: string | null
+          weekly_objectives?: Json
         }
         Relationships: [
           {

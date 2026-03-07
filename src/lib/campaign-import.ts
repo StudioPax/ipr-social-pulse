@@ -61,11 +61,17 @@ export interface CampaignDeliverable {
   char_limit?: number;
 }
 
+export interface CampaignWeeklyObjective {
+  week_number: number;
+  objective: string;
+}
+
 export interface CampaignImportSchema {
   campaign_type: CampaignImportType;
   duration_weeks: number;
   channels_used: string[];
   deliverables: CampaignDeliverable[];
+  weekly_objectives?: CampaignWeeklyObjective[];
 }
 
 // ── Validation ───────────────────────────────────────────────────────────
@@ -152,6 +158,25 @@ export function validateImportJSON(
           field: "channels_used",
           message: `Invalid channel "${ch}". Must be one of: ${VALID_CHANNELS.join(", ")}`,
         });
+      }
+    }
+  }
+
+  // weekly_objectives (optional)
+  if (obj.weekly_objectives !== undefined) {
+    if (!Array.isArray(obj.weekly_objectives)) {
+      errors.push({ field: "weekly_objectives", message: "Must be an array of { week_number, objective } objects" });
+    } else {
+      for (let i = 0; i < obj.weekly_objectives.length; i++) {
+        const wo = obj.weekly_objectives[i] as Record<string, unknown>;
+        if (typeof wo.week_number !== "number" || !Number.isInteger(wo.week_number)) {
+          errors.push({ field: `weekly_objectives[${i}].week_number`, message: "Must be an integer" });
+        } else if (wo.week_number < 1 || wo.week_number > durationWeeks) {
+          errors.push({ field: `weekly_objectives[${i}].week_number`, message: `Must be between 1 and ${durationWeeks}` });
+        }
+        if (typeof wo.objective !== "string" || wo.objective.trim() === "") {
+          errors.push({ field: `weekly_objectives[${i}].objective`, message: "Required, non-empty string" });
+        }
       }
     }
   }

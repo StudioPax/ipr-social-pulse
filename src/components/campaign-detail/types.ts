@@ -69,15 +69,24 @@ export interface CampaignChannel {
   suggested_content: string | null;
   edited_content: string | null;
   char_count: number | null;
+  char_limit: number | null;
   hashtags: string[] | null;
   mentions: string[] | null;
   media_suggestion: string | null;
+  narrative_angle: string | null;
+  call_to_action: string | null;
   status: string;
   stage: string;
   week_number: number | null;
-  scheduled_for: string | null;
+  scheduled_date: string | null;
   published_post_id: string | null;
   publish_order: number | null;
+  key_message_ids: number[] | null;
+}
+
+export interface WeeklyObjective {
+  week_number: number;
+  objective: string;
 }
 
 export interface AudienceNarrative {
@@ -105,6 +114,7 @@ export interface StrategyOutput {
   key_messages: string[];
   audience_narratives: Record<string, AudienceNarrative>;
   channel_strategy: Record<string, ChannelStrategy>;
+  weekly_objectives?: WeeklyObjective[];
   fw_values_lead: string;
   fw_causal_chain: string;
   fw_cultural_freight: string;
@@ -119,6 +129,7 @@ export interface CampaignAnalysis {
   key_messages: string[] | null;
   audience_narratives: Record<string, AudienceNarrative> | null;
   channel_strategy: Record<string, ChannelStrategy> | null;
+  weekly_objectives: WeeklyObjective[] | null;
   fw_values_lead: string | null;
   fw_causal_chain: string | null;
   fw_cultural_freight: string | null;

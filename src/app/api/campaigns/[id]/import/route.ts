@@ -21,7 +21,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database";
+import type { Database, Json } from "@/types/database";
 import {
   validateImportJSON,
   toChannelInserts,
@@ -99,8 +99,17 @@ export async function POST(
       });
     }
 
-    // Commit mode — delete existing channel plans and insert new ones
-    // First, delete existing deliverables for this campaign
+    // Commit mode — backup existing, delete, insert new, rollback on failure
+
+    // 1. Backup existing deliverables before deletion
+    const { data: existingChannels } = await supabase
+      .from("campaign_channels")
+      .select("*")
+      .eq("campaign_id", campaignId);
+
+    const backup = existingChannels || [];
+
+    // 2. Delete existing deliverables
     const { error: deleteError } = await supabase
       .from("campaign_channels")
       .delete()
@@ -113,19 +122,102 @@ export async function POST(
       );
     }
 
-    // Insert all new deliverables
+    // 3. Insert new deliverables
     const { error: insertError } = await supabase
       .from("campaign_channels")
       .insert(insertRows);
 
     if (insertError) {
+      // Rollback — restore backed-up deliverables
+      if (backup.length > 0) {
+        const restoreRows = backup.map((row) => ({
+          campaign_id: row.campaign_id,
+          channel: row.channel,
+          audience_segment: row.audience_segment,
+          suggested_content: row.suggested_content,
+          char_limit: row.char_limit,
+          hashtags: row.hashtags,
+          mentions: row.mentions,
+          media_suggestion: row.media_suggestion,
+          status: row.status,
+          stage: row.stage,
+          week_number: row.week_number,
+          scheduled_date: row.scheduled_date,
+          published_post_id: row.published_post_id,
+          publish_order: row.publish_order,
+          narrative_angle: row.narrative_angle,
+          call_to_action: row.call_to_action,
+          key_message_ids: row.key_message_ids,
+        }));
+        await supabase.from("campaign_channels").insert(restoreRows);
+      }
       return NextResponse.json(
-        { error: `Failed to import deliverables: ${insertError.message}` },
+        { error: `Failed to import deliverables (rolled back): ${insertError.message}` },
         { status: 500 }
       );
     }
 
-    // Update campaign channels_used from the import
+    // 4. Save weekly_objectives — use explicit ones from JSON, or auto-generate from deliverables
+    const weeklyObjectives = (() => {
+      // If explicitly provided, use those
+      if (importData.weekly_objectives && importData.weekly_objectives.length > 0) {
+        return importData.weekly_objectives;
+      }
+      // Auto-generate from deliverables: group by week → build objective summary
+      const weekMap = new Map<number, { stages: Set<string>; channels: Set<string>; count: number }>();
+      for (const d of importData.deliverables) {
+        if (!weekMap.has(d.week_number)) {
+          weekMap.set(d.week_number, { stages: new Set(), channels: new Set(), count: 0 });
+        }
+        const w = weekMap.get(d.week_number)!;
+        w.stages.add(d.stage.replace(/_/g, " "));
+        w.channels.add(d.channel.replace(/_/g, " "));
+        w.count++;
+      }
+      const stageLabels: Record<string, string> = {
+        "pre launch": "build anticipation and prepare for launch",
+        rollout: "launch across channels and drive initial engagement",
+        sustain: "maintain momentum and deepen audience engagement",
+        measure: "evaluate impact and close the campaign arc",
+      };
+      return Array.from(weekMap.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([weekNum, info]) => {
+          const primaryStage = Array.from(info.stages)[0];
+          const stageGoal = stageLabels[primaryStage] || primaryStage;
+          const channelList = Array.from(info.channels).join(", ");
+          return {
+            week_number: weekNum,
+            objective: `Week ${weekNum} objective: ${stageGoal}. ${info.count} deliverable${info.count !== 1 ? "s" : ""} across ${channelList}.`,
+          };
+        });
+    })();
+
+    if (weeklyObjectives.length > 0) {
+      const { data: existingAnalysis } = await supabase
+        .from("campaign_analyses")
+        .select("id")
+        .eq("campaign_id", campaignId)
+        .single();
+
+      const objectivesPayload = weeklyObjectives as unknown as Json;
+
+      if (existingAnalysis) {
+        await supabase
+          .from("campaign_analyses")
+          .update({ weekly_objectives: objectivesPayload })
+          .eq("id", existingAnalysis.id);
+      } else {
+        await supabase
+          .from("campaign_analyses")
+          .insert({
+            campaign_id: campaignId,
+            weekly_objectives: objectivesPayload,
+          });
+      }
+    }
+
+    // 5. Update campaign channels_used from the import
     await supabase
       .from("campaigns")
       .update({
@@ -137,6 +229,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       deliverables_created: insertRows.length,
+      deliverables_deleted: backup.length,
       summary: validationResult.summary,
     });
   } catch (err: unknown) {

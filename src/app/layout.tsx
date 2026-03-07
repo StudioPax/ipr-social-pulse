@@ -1,25 +1,15 @@
 import type { Metadata } from "next";
-import { DM_Sans, DM_Serif_Display, JetBrains_Mono, Epilogue } from "next/font/google";
+import { DM_Serif_Display, Epilogue } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-/* UI Spec §6 — Typography */
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
+/* Typography */
 const dmSerifDisplay = DM_Serif_Display({
   weight: "400",
   subsets: ["latin"],
   variable: "--font-display",
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
   display: "swap",
 });
 
@@ -44,7 +34,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${dmSerifDisplay.variable} ${jetbrainsMono.variable} ${epilogue.variable}`}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${dmSerifDisplay.variable} ${epilogue.variable}`}
     >
       <body className="font-sans antialiased">
         {children}

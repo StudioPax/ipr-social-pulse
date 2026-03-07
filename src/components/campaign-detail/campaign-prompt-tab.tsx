@@ -512,25 +512,43 @@ export function CampaignPromptTab({
 
       {/* Import confirmation dialog when existing deliverables exist */}
       <AlertDialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Replace existing deliverables?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete all {existingDeliverableCount} existing
-              deliverables from the Campaign Plan and replace them with{" "}
-              {importPreview?.summary.total_deliverables ?? 0} new ones from this import.
-            </AlertDialogDescription>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Destructive Action: Replace All Deliverables
+            </AlertDialogTitle>
+            <div className="space-y-3 pt-2">
+              <AlertDialogDescription className="text-sm">
+                This action <span className="font-semibold text-foreground">cannot be undone</span>. It will:
+              </AlertDialogDescription>
+              <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+                <li>
+                  Permanently delete all <span className="font-mono font-semibold text-destructive">{existingDeliverableCount}</span> existing
+                  deliverables (including any edits you&apos;ve made)
+                </li>
+                <li>
+                  Replace them with <span className="font-mono font-semibold">{importPreview?.summary.total_deliverables ?? 0}</span> new
+                  deliverables from this import
+                </li>
+              </ul>
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
+                All drafted, reviewed, and approved content will be lost. Make sure you have a backup if needed.
+              </div>
+            </div>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="font-medium">
+              Cancel — Keep Existing
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setShowImportConfirm(false);
                 handleCommitImport();
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-medium"
             >
-              Delete & Import
+              Delete All & Import
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

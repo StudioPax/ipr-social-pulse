@@ -24,11 +24,11 @@ function cleanup() {
   const now = Date.now();
   if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
   lastCleanup = now;
-  for (const [ip, entry] of ipMap) {
+  ipMap.forEach((entry, ip) => {
     if (entry.resetAt < now) {
       ipMap.delete(ip);
     }
-  }
+  });
 }
 
 function getClientIp(request: NextRequest): string {

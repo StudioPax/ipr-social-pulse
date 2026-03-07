@@ -236,6 +236,7 @@ function CampaignDetailInner() {
         key_messages: analysis.key_messages || [],
         audience_narratives: analysis.audience_narratives || {},
         channel_strategy: analysis.channel_strategy || {},
+        weekly_objectives: (analysis.weekly_objectives as unknown as import("@/components/campaign-detail/types").WeeklyObjective[]) || undefined,
         fw_values_lead: analysis.fw_values_lead || "",
         fw_causal_chain: analysis.fw_causal_chain || "",
         fw_cultural_freight: analysis.fw_cultural_freight || "",

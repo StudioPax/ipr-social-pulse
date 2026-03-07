@@ -4,14 +4,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  FileText,
+  Megaphone,
+  Radio,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 
-export const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: "📊", comingSoon: false },
-  { href: "/content", label: "Content", icon: "📄", comingSoon: false },
-  { href: "/campaigns", label: "Campaigns", icon: "📋", comingSoon: false },
-  { href: "/outreach", label: "Outreach", icon: "📡", comingSoon: true },
-  { href: "/settings", label: "Settings", icon: "⚙️", comingSoon: false },
-] as const;
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  comingSoon: boolean;
+};
+
+export const NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, comingSoon: false },
+  { href: "/content", label: "Content", icon: FileText, comingSoon: false },
+  { href: "/campaigns", label: "Campaigns", icon: Megaphone, comingSoon: false },
+  { href: "/outreach", label: "Outreach", icon: Radio, comingSoon: true },
+  { href: "/settings", label: "Settings", icon: Settings, comingSoon: false },
+];
 
 interface NavLinksProps {
   onNavigate?: () => void;
@@ -25,13 +40,15 @@ export function NavLinks({ onNavigate }: NavLinksProps) {
       {NAV_ITEMS.map((item) => {
         const isActive = pathname?.startsWith(item.href);
 
+        const Icon = item.icon;
+
         if (item.comingSoon) {
           return (
             <span
               key={item.href}
               className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground/50 cursor-default"
             >
-              <span className="text-base opacity-50">{item.icon}</span>
+              <Icon className="h-4 w-4 opacity-50" />
               {item.label}
               <span className="ml-auto text-[10px] font-medium uppercase tracking-wider opacity-60">
                 Soon
@@ -52,7 +69,7 @@ export function NavLinks({ onNavigate }: NavLinksProps) {
                 : "text-muted-foreground hover:bg-surface-hover hover:text-foreground"
             )}
           >
-            <span className="text-base">{item.icon}</span>
+            <Icon className="h-4 w-4" />
             {item.label}
           </Link>
         );
