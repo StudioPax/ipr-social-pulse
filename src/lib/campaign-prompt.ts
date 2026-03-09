@@ -8,6 +8,7 @@ import { CAMPAIGN_CHANNELS, TARGET_AUDIENCES } from "./tokens";
 export const CAMPAIGN_BRIEF_PROMPT_VERSION = "brief-v1.0";
 export const CAMPAIGN_STRATEGY_PROMPT_VERSION = "strategy-v1.0";
 export const CAMPAIGN_IMPORT_PROMPT_VERSION = "prompt-import-v1.0";
+export const DELIVERABLE_CONTENT_PROMPT_VERSION = "deliverable-v1.0";
 
 // ── Generate AI Brief (Optional) ──────────────────────────────────────────
 
@@ -399,6 +400,119 @@ export interface StrategyOutput {
   embargo_notes: string;
   faculty_engagement_plan: string;
   cross_promotion_opps: string[];
+}
+
+// ── Deliverable Content Generation ─────────────────────────────────────────
+
+export const DELIVERABLE_CONTENT_SYSTEM_PROMPT = `You are a strategic communications writer for Northwestern Institute for Policy Research (IPR).
+
+Your task is to generate a single publishable social media or content deliverable for a specific channel, audience, and campaign week.
+
+Return ONLY valid JSON — no markdown, no code fences, no explanation.
+
+## Your Inputs
+You will receive:
+1. The target channel and its character limit
+2. The target audience segment
+3. The week number and its strategic objective
+4. The campaign strategy context (key messages, FrameWorks guidance, audience narratives)
+
+## FrameWorks Institute Methodology
+Apply these principles in your content:
+1. VALUES LEAD — Open with a broadly shared value, not statistics
+2. CAUSAL CHAIN — Explain systemic causes, don't imply individual blame
+3. CULTURAL FREIGHT — Avoid activating bootstrap/charity/deserving mindsets
+4. EPISODIC → THEMATIC — Bridge personal stories to structural patterns
+5. SOLUTIONS FRAMING — Give the audience agency, not passive sympathy
+
+## Channel-Specific Writing Rules
+- Social posts (bluesky, twitter, instagram): Concise, punchy, hashtag-friendly. MUST respect character limits.
+- LinkedIn: Professional, data-driven, can be longer-form. Include a clear CTA.
+- Website/newsletter: Comprehensive, SEO-aware, narrative structure.
+- Press release: AP style, quote from PI, journalist-friendly.
+- Op-ed: Argumentative, solutions-oriented, 750-800 words.
+- Event/podcast: Talking points format, conversational tone.
+
+## Quality Standards
+- Content must be COMPLETE DRAFT COPY, not placeholders or summaries
+- Lead with the audience narrative hook if one exists for this audience
+- Use the weekly objective as strategic direction, not as content to copy
+- Respect the key messages — amplify, don't reinterpret
+- The content MUST fit within the channel's character limit (if one exists)
+
+## Output Schema
+{
+  "suggested_content": "<complete draft content for this channel — respect char limit>",
+  "narrative_angle": "<the framing/hook used for this audience on this channel>",
+  "call_to_action": "<what the audience should do>",
+  "hashtags": ["tag1", "tag2"],
+  "mentions": ["mention1"],
+  "media_suggestion": "<what visual/media to pair with this post>"
+}`;
+
+export function buildDeliverableUserMessage(input: {
+  channel: string;
+  charLimit: number | null;
+  audience: string;
+  weekNumber: number;
+  weekObjective: string;
+  stage: string;
+  campaignTitle: string;
+  keyMessages: string[];
+  audienceNarrative: AudienceNarrative | null;
+  fwGuidance: {
+    values_lead: string;
+    causal_chain: string;
+    cultural_freight: string;
+    thematic_bridge: string;
+    solutions_framing: string;
+  };
+  researchSummary: string;
+}): string {
+  const sections: string[] = [];
+
+  sections.push(`Generate a single deliverable for this campaign.
+
+=== TARGET ===
+Channel: ${input.channel}${input.charLimit ? ` (${input.charLimit} character limit — content MUST fit)` : " (no character limit)"}
+Audience: ${input.audience}
+Week: ${input.weekNumber} (stage: ${input.stage})
+Campaign: ${input.campaignTitle}`);
+
+  sections.push(`
+=== WEEKLY OBJECTIVE (strategic direction for Week ${input.weekNumber}) ===
+${input.weekObjective || "No specific objective set for this week."}`);
+
+  sections.push(`
+=== RESEARCH CONTEXT ===
+${input.researchSummary || "No research summary available."}`);
+
+  if (input.keyMessages.length > 0) {
+    sections.push(`
+=== KEY MESSAGES (respect these — amplify, don't reinterpret) ===
+${input.keyMessages.map((m, i) => `${i + 1}. ${m}`).join("\n")}`);
+  }
+
+  if (input.audienceNarrative) {
+    const n = input.audienceNarrative;
+    sections.push(`
+=== AUDIENCE NARRATIVE for ${input.audience} ===
+Hook: ${n.hook}
+Framing: ${n.framing}
+Key stat: ${n.key_stat}
+CTA: ${n.call_to_action}
+Tone: ${n.tone}`);
+  }
+
+  sections.push(`
+=== FRAMEWORKS GUIDANCE ===
+Values Lead: ${input.fwGuidance.values_lead || "(not set)"}
+Causal Chain: ${input.fwGuidance.causal_chain || "(not set)"}
+Cultural Freight (avoid): ${input.fwGuidance.cultural_freight || "(not set)"}
+Thematic Bridge: ${input.fwGuidance.thematic_bridge || "(not set)"}
+Solutions Framing: ${input.fwGuidance.solutions_framing || "(not set)"}`);
+
+  return sections.join("\n");
 }
 
 // ── Import Prompt Builder (Mechanical — no LLM call) ─────────────────────

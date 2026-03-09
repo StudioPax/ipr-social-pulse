@@ -385,6 +385,8 @@ function CampaignDetailInner() {
         <TabsContent value="channels" className="mt-6">
           <CampaignChannelsTab
             campaignId={campaignId}
+            clientId={campaign.client_id}
+            durationWeeks={campaign.duration_weeks}
             channels={channels}
             strategyOutput={strategyOutput}
             onRefresh={loadCampaign}
