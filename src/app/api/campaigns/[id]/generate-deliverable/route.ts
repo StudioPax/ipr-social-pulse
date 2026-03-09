@@ -28,7 +28,7 @@ export async function POST(
   try {
     const campaignId = params.id;
     const body = await request.json();
-    const { client_id, channel, audience_segment, stage, week_number } = body;
+    const { client_id, channel, audience_segment, stage, week_number, user_direction } = body;
 
     if (!channel || !audience_segment || !week_number) {
       return NextResponse.json(
@@ -122,6 +122,7 @@ export async function POST(
         solutions_framing: (analysis.fw_solutions_framing as string) || "",
       },
       researchSummary: (analysis.research_summary as string) || "",
+      userDirection: user_direction || "",
     });
 
     // Call Claude

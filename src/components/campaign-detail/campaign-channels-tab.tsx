@@ -242,6 +242,7 @@ export function CampaignChannelsTab({
             audience_segment: newChannelAudience,
             stage: newChannelStage,
             week_number: weekNum,
+            ...(newChannelContent.trim() && { user_direction: newChannelContent.trim() }),
           }),
         });
         if (!res.ok) {
@@ -916,19 +917,23 @@ export function CampaignChannelsTab({
                     </div>
                   </div>
 
-                  {contentMode === "manual" ? (
-                    <textarea
-                      className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      value={newChannelContent}
-                      onChange={(e) => setNewChannelContent(e.target.value)}
-                      disabled={addingChannel}
-                      placeholder="Draft content for this deliverable..."
-                      rows={3}
-                    />
-                  ) : (
-                    <div className="rounded-md border border-dashed border-primary/30 bg-primary/5 px-4 py-3">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Sparkles className="h-4 w-4 text-primary" />
+                  <textarea
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    value={newChannelContent}
+                    onChange={(e) => setNewChannelContent(e.target.value)}
+                    disabled={addingChannel}
+                    placeholder={
+                      contentMode === "ai"
+                        ? "Optional: add direction, tone notes, or talking points for AI..."
+                        : "Draft content for this deliverable..."
+                    }
+                    rows={3}
+                  />
+
+                  {contentMode === "ai" && (
+                    <div className="rounded-md border border-dashed border-primary/30 bg-primary/5 px-3 py-2.5">
+                      <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <Sparkles className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
                         <span>
                           AI will generate content using the{" "}
                           {newChannelWeek
@@ -942,10 +947,13 @@ export function CampaignChannelsTab({
                               })()})`
                             : ""}
                           , and campaign strategy.
+                          {newChannelContent.trim()
+                            ? " Your notes above will be included as additional direction."
+                            : ""}
                         </span>
                       </div>
                       {!newChannelWeek && (
-                        <p className="text-xs text-amber-600 mt-1.5">
+                        <p className="text-xs text-amber-600 mt-1.5 ml-5.5">
                           Select a week above — required for AI generation.
                         </p>
                       )}

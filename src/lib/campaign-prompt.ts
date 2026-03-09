@@ -468,6 +468,7 @@ export function buildDeliverableUserMessage(input: {
     solutions_framing: string;
   };
   researchSummary: string;
+  userDirection?: string;
 }): string {
   const sections: string[] = [];
 
@@ -511,6 +512,12 @@ Causal Chain: ${input.fwGuidance.causal_chain || "(not set)"}
 Cultural Freight (avoid): ${input.fwGuidance.cultural_freight || "(not set)"}
 Thematic Bridge: ${input.fwGuidance.thematic_bridge || "(not set)"}
 Solutions Framing: ${input.fwGuidance.solutions_framing || "(not set)"}`);
+
+  if (input.userDirection?.trim()) {
+    sections.push(`
+=== USER DIRECTION (prioritize these notes) ===
+${input.userDirection.trim()}`);
+  }
 
   return sections.join("\n");
 }
