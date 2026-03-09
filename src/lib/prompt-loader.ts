@@ -10,8 +10,10 @@ import { buildInsightsSystemPrompt, DASHBOARD_INSIGHTS_PROMPT_VERSION } from "@/
 import {
   BRIEF_SYSTEM_PROMPT,
   STRATEGY_SYSTEM_PROMPT,
+  DELIVERABLE_CONTENT_SYSTEM_PROMPT,
   CAMPAIGN_BRIEF_PROMPT_VERSION,
   CAMPAIGN_STRATEGY_PROMPT_VERSION,
+  DELIVERABLE_CONTENT_PROMPT_VERSION,
 } from "@/lib/campaign-prompt";
 
 const supabase = createClient<Database>(
@@ -24,7 +26,8 @@ export type PromptSlug =
   | "dashboard-insights"
   | "campaign-brief"
   | "campaign-strategy"
-  | "audience-narrative";
+  | "audience-narrative"
+  | "deliverable-content";
 
 export interface LoadedPrompt {
   systemPrompt: string;
@@ -81,6 +84,12 @@ const FALLBACK_PROMPTS: Record<PromptSlug, () => Omit<LoadedPrompt, "source">> =
     temperature: 0.7,
     maxTokens: 1024,
     version: "audience-v1.0",
+  }),
+  "deliverable-content": () => ({
+    systemPrompt: DELIVERABLE_CONTENT_SYSTEM_PROMPT,
+    temperature: 0.7,
+    maxTokens: 2048,
+    version: DELIVERABLE_CONTENT_PROMPT_VERSION,
   }),
 };
 

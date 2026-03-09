@@ -41,6 +41,8 @@ import {
   Hash,
   Pencil,
   Save,
+  Sparkles,
+  FileText,
 } from "lucide-react";
 import type { CampaignChannel, StrategyOutput, ChannelEditForm, WeeklyObjective } from "./types";
 import {
@@ -55,6 +57,8 @@ import {
 
 interface CampaignChannelsTabProps {
   campaignId: string;
+  clientId: string;
+  durationWeeks: number | null;
   channels: CampaignChannel[];
   strategyOutput: StrategyOutput | null;
   onRefresh: () => Promise<void>;
@@ -62,6 +66,8 @@ interface CampaignChannelsTabProps {
 
 export function CampaignChannelsTab({
   campaignId,
+  clientId,
+  durationWeeks,
   channels,
   strategyOutput,
   onRefresh,
@@ -92,7 +98,9 @@ export function CampaignChannelsTab({
   const [newChannelType, setNewChannelType] = useState("");
   const [newChannelAudience, setNewChannelAudience] = useState("");
   const [newChannelStage, setNewChannelStage] = useState("rollout");
+  const [newChannelWeek, setNewChannelWeek] = useState("");
   const [newChannelContent, setNewChannelContent] = useState("");
+  const [contentMode, setContentMode] = useState<"manual" | "ai">("manual");
   const [addingChannel, setAddingChannel] = useState(false);
 
   // ── Handlers ──────────────────────────────────────────────────────────
@@ -214,32 +222,68 @@ export function CampaignChannelsTab({
 
   const addChannelDeliverable = async () => {
     if (!newChannelType || !newChannelAudience) return;
+    const weekNum = newChannelWeek ? parseInt(newChannelWeek, 10) : null;
+
     setAddingChannel(true);
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/channels`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channel: newChannelType,
-          audience_segment: newChannelAudience,
-          stage: newChannelStage,
-          suggested_content: newChannelContent.trim() || null,
-          status: "planned",
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to add channel deliverable");
-      toast({
-        title: "Deliverable added",
-        description: `${getChannelLabel(newChannelType)} deliverable has been added.`,
-      });
+      if (contentMode === "ai") {
+        // AI generate mode — requires week_number
+        if (!weekNum) {
+          toast({ title: "Week required", description: "Select a week for AI-generated content." });
+          setAddingChannel(false);
+          return;
+        }
+        const res = await fetch(`/api/campaigns/${campaignId}/generate-deliverable`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id: clientId,
+            channel: newChannelType,
+            audience_segment: newChannelAudience,
+            stage: newChannelStage,
+            week_number: weekNum,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to generate deliverable");
+        }
+        toast({
+          title: "Deliverable generated",
+          description: `AI-generated ${getChannelLabel(newChannelType)} content for Week ${weekNum}.`,
+        });
+      } else {
+        // Manual mode
+        const res = await fetch(`/api/campaigns/${campaignId}/channels`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            channel: newChannelType,
+            audience_segment: newChannelAudience,
+            stage: newChannelStage,
+            week_number: weekNum,
+            suggested_content: newChannelContent.trim() || null,
+            status: "planned",
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to add channel deliverable");
+        toast({
+          title: "Deliverable added",
+          description: `${getChannelLabel(newChannelType)} deliverable has been added.`,
+        });
+      }
+
       setNewChannelType("");
       setNewChannelAudience("");
       setNewChannelStage("rollout");
+      setNewChannelWeek("");
       setNewChannelContent("");
+      setContentMode("manual");
       setShowAddChannel(false);
       await onRefresh();
-    } catch {
-      toast({ title: "Error", description: "Failed to add deliverable." });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to add deliverable.";
+      toast({ title: "Error", description: message });
     } finally {
       setAddingChannel(false);
     }
@@ -764,7 +808,7 @@ export function CampaignChannelsTab({
             <Card className="border-dashed">
               <CardContent className="pt-6 space-y-4">
                 <p className="text-sm font-medium">Add New Deliverable</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                       Channel
@@ -801,6 +845,30 @@ export function CampaignChannelsTab({
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Week
+                    </Label>
+                    <Select value={newChannelWeek} onValueChange={setNewChannelWeek}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select week..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from(
+                          { length: durationWeeks || 6 },
+                          (_, i) => i + 1
+                        ).map((w) => {
+                          const obj = weeklyObjectives.find((o) => o.week_number === w);
+                          return (
+                            <SelectItem key={w} value={String(w)} className="text-xs">
+                              Week {w}
+                              {obj ? ` — ${obj.objective.slice(0, 40)}…` : ""}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                       Stage
                     </Label>
                     <Select value={newChannelStage} onValueChange={setNewChannelStage}>
@@ -817,31 +885,99 @@ export function CampaignChannelsTab({
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    Content <span className="normal-case font-normal">(optional)</span>
-                  </Label>
-                  <textarea
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                    value={newChannelContent}
-                    onChange={(e) => setNewChannelContent(e.target.value)}
-                    disabled={addingChannel}
-                    placeholder="Draft content for this deliverable..."
-                    rows={3}
-                  />
+
+                {/* Content mode toggle */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Content
+                    </Label>
+                    <div className="flex items-center gap-1 ml-auto">
+                      <Button
+                        variant={contentMode === "manual" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-7 text-xs px-2.5"
+                        onClick={() => setContentMode("manual")}
+                        disabled={addingChannel}
+                      >
+                        <FileText className="h-3 w-3 mr-1" />
+                        Manual
+                      </Button>
+                      <Button
+                        variant={contentMode === "ai" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-7 text-xs px-2.5"
+                        onClick={() => setContentMode("ai")}
+                        disabled={addingChannel}
+                      >
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        AI Generate
+                      </Button>
+                    </div>
+                  </div>
+
+                  {contentMode === "manual" ? (
+                    <textarea
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                      value={newChannelContent}
+                      onChange={(e) => setNewChannelContent(e.target.value)}
+                      disabled={addingChannel}
+                      placeholder="Draft content for this deliverable..."
+                      rows={3}
+                    />
+                  ) : (
+                    <div className="rounded-md border border-dashed border-primary/30 bg-primary/5 px-4 py-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <span>
+                          AI will generate content using the{" "}
+                          {newChannelWeek
+                            ? `Week ${newChannelWeek} objective`
+                            : "weekly objective"}
+                          , channel constraints
+                          {newChannelType
+                            ? ` (${getChannelLabel(newChannelType)}${(() => {
+                                const limit = getChannelCharLimit(newChannelType);
+                                return limit ? `, ${limit} chars` : "";
+                              })()})`
+                            : ""}
+                          , and campaign strategy.
+                        </span>
+                      </div>
+                      {!newChannelWeek && (
+                        <p className="text-xs text-amber-600 mt-1.5">
+                          Select a week above — required for AI generation.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
+
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
                     onClick={addChannelDeliverable}
-                    disabled={addingChannel || !newChannelType || !newChannelAudience}
+                    disabled={
+                      addingChannel ||
+                      !newChannelType ||
+                      !newChannelAudience ||
+                      (contentMode === "ai" && !newChannelWeek)
+                    }
                   >
                     {addingChannel ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : contentMode === "ai" ? (
+                      <Sparkles className="h-3.5 w-3.5" />
                     ) : (
                       <Plus className="h-3.5 w-3.5" />
                     )}
-                    {addingChannel ? "Adding..." : "Add Deliverable"}
+                    {addingChannel
+                      ? contentMode === "ai"
+                        ? "Generating..."
+                        : "Adding..."
+                      : contentMode === "ai"
+                      ? "Generate Deliverable"
+                      : "Add Deliverable"}
                   </Button>
                   <Button
                     variant="ghost"
@@ -851,7 +987,9 @@ export function CampaignChannelsTab({
                       setNewChannelType("");
                       setNewChannelAudience("");
                       setNewChannelStage("rollout");
+                      setNewChannelWeek("");
                       setNewChannelContent("");
+                      setContentMode("manual");
                     }}
                     disabled={addingChannel}
                   >
